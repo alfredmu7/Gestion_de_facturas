@@ -1,0 +1,459 @@
+/* FORZAR PANTALLA COMPLETA EN EL NODO RAÍZ DE REACT */
+html, body, #root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden;
+}
+
+/* El contenedor principal asegurado */
+.dashboard-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* RESET & FULLSCREEN */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Elimina cualquier desplazamiento horizontal accidental */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* CONTAINER PRINCIPAL (Usa 100% en lugar de 100vw para evitar la barra de scroll) */
+.dashboard-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+}
+
+/* SIDEBAR EN ESCRITORIO */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: #1e293b;
+  color: #f8fafc;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 2rem;
+  padding: 0 0.5rem;
+}
+
+.sidebar-menu {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.menu-item:hover, .menu-item.active {
+  background-color: #334155;
+  color: #ffffff;
+}
+/* ÁREA PRINCIPAL */
+.main-content {
+  flex: 1; /* Ocupa todo el espacio restante a la derecha de forma fluida */
+  min-width: 0; /* IMPRESCINDIBLE: Previene que tablas o elementos anchos estiren el contenedor */
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172ab0;
+}
+
+.page-subtitle {
+  color: #64748b;
+  margin-top: 0.25rem;
+  font-size: 14px;
+}
+
+/* GRID DE MÉTRICAS KPI (Auto-fill dinámico para pantalla ancha) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.kpi-card {
+  background-color: #ffffff;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-icon.blue { background-color: #e0f2fe; color: #0284c7; }
+.kpi-icon.green { background-color: #dcfce7; color: #16a34a; }
+.kpi-icon.purple { background-color: #f3e8ff; color: #9333ea; }
+.kpi-icon.amber { background-color: #fef3c7; color: #d97706; }
+
+.kpi-data {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* TARJETAS DE CONTENIDO */
+.content-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f172aaa;
+}
+
+/* PESTAÑAS Y SUBIDA DE ARCHIVOS */
+.ingestion-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background-color: #f1f5f9;
+  color: #0284c7;
+}
+
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  cursor: pointer;
+  background-color: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.upload-label:hover {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+}
+
+.upload-text {
+  margin-top: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  text-align: center;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: #0369a1;
+}
+
+/* CANAL WHATSAPP */
+.whatsapp-banner {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 1.25rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #166534;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.whatsapp-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.whatsapp-number {
+  font-weight: 700;
+  background-color: #dcfce7;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+/* TABLA Y FILTROS */
+.table-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background-color: rgba(225, 225, 225, 0.281);
+  color: #0f172aaa;
+}
+
+.select-filter {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background-color: white;
+  color: #0f172aaa;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.invoice-table th {
+  background-color: #f8fafc;
+  padding: 0.85rem 1rem;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.invoice-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.category-badge {
+  background-color: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+/* BADGES DE ESTADO */
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge.aprobada { background-color: #dcfce7; color: #15803d; }
+.badge.revision { background-color: #fef3c7; color: #b45309; }
+.badge.rechazada { background-color: #fee2e2; color: #b91c1c; }
+
+/* 📱 REGLAS RESPONSIVE (TABLETS Y MÓVILES) */
+@media (max-width: 1024px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+    padding: 1rem;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .sidebar-logo {
+    margin-bottom: 0;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .menu-item span {
+    display: none; /* En tablet muestra solo los iconos */
+  }
+
+  .main-content {
+    width: 100vw;
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar-menu {
+    display: none; /* En móviles muy pequeños se oculta para dejar todo el espacio */
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr; /* Una sola columna para los KPIs en móvil */
+  }
+
+  .ingestion-tabs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tab-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .whatsapp-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .whatsapp-number {
+    width: 100%;
+    text-align: center;
+  }
+
+  .table-controls {
+    flex-direction: column;
+  }
+
+  .search-input, .select-filter {
+    width: 100%;
+  }
+}
