@@ -1,7 +1,6 @@
 # Environment variables (¡CRÍTICO para evitar bloqueos de GitHub!)
 .env
 .env.*
-!.env.example
 *.env
 backend/.env
 
