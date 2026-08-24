@@ -1,3 +1,23 @@
+/* ==========================================================================
+   IMPORTACIÓN DE FUENTES & CONFIGURACIÓN BASE (:root)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --primary-blue: #3b82f6;
+  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* RESET & CONFIGURACIÓN TIPOGRÁFICA GLOBAL */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* FORZAR PANTALLA COMPLETA EN EL NODO RAÍZ DE REACT */
 html, body, #root {
   width: 100% !important;
@@ -6,36 +26,14 @@ html, body, #root {
   margin: 0 !important;
   padding: 0 !important;
   overflow-x: hidden;
-}
-
-/* El contenedor principal asegurado */
-.dashboard-container {
-  display: flex;
-  width: 100%;
-  min-height: 100vh;
-  background-color: #f8fafc;
-}
-
-/* RESET & FULLSCREEN */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  width: 100%;
-  max-width: 100%;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden; /* Elimina cualquier desplazamiento horizontal accidental */
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-main);
   background-color: #f8fafc;
   color: #0f172a;
 }
 
-/* CONTAINER PRINCIPAL (Usa 100% en lugar de 100vw para evitar la barra de scroll) */
+/* ==========================================================================
+   CONTENEDOR PRINCIPAL
+   ========================================================================== */
 .dashboard-container {
   display: flex;
   width: 100%;
@@ -44,7 +42,9 @@ html, body {
   overflow-x: hidden;
 }
 
-/* SIDEBAR EN ESCRITORIO */
+/* ==========================================================================
+   SIDEBAR EN ESCRITORIO
+   ========================================================================== */
 .sidebar {
   width: 260px;
   min-width: 260px;
@@ -61,7 +61,7 @@ html, body {
   align-items: center;
   gap: 12px;
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #38bdf8;
   margin-bottom: 2rem;
   padding: 0 0.5rem;
@@ -87,11 +87,15 @@ html, body {
   font-weight: 500;
 }
 
-.menu-item:hover, .menu-item.active {
+.menu-item:hover, 
+.menu-item.active {
   background-color: #334155;
   color: #ffffff;
 }
-/* ÁREA PRINCIPAL */
+
+/* ==========================================================================
+   ÁREA PRINCIPAL
+   ========================================================================== */
 .main-content {
   flex: 1; /* Ocupa todo el espacio restante a la derecha de forma fluida */
   min-width: 0; /* IMPRESCINDIBLE: Previene que tablas o elementos anchos estiren el contenedor */
@@ -105,18 +109,21 @@ html, body {
 
 .page-title {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
-  color: #0f172ab0;
+  color: #010101c9;
 }
 
 .page-subtitle {
   color: #64748b;
   margin-top: 0.25rem;
   font-size: 14px;
+  font-weight: 400;
 }
 
-/* GRID DE MÉTRICAS KPI (Auto-fill dinámico para pantalla ancha) */
+/* ==========================================================================
+   GRID DE MÉTRICAS KPI
+   ========================================================================== */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -168,7 +175,9 @@ html, body {
   color: #0f172a;
 }
 
-/* TARJETAS DE CONTENIDO */
+/* ==========================================================================
+   TARJETAS DE CONTENIDO Y FORMULARIOS
+   ========================================================================== */
 .content-card {
   background-color: #ffffff;
   border-radius: 12px;
@@ -188,12 +197,12 @@ html, body {
 
 .card-title {
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #0f172aaa;
+  color: #0f172a;
 }
 
 /* PESTAÑAS Y SUBIDA DE ARCHIVOS */
@@ -254,7 +263,7 @@ html, body {
   width: 100%;
   margin-top: 1rem;
   padding: 0.75rem;
-  background-color: #0284c7;
+  background-color: var(--primary-blue);
   color: white;
   border: none;
   border-radius: 8px;
@@ -268,10 +277,12 @@ html, body {
 }
 
 .submit-btn:hover {
-  background-color: #0369a1;
+  background-color: #2563eb;
 }
 
-/* CANAL WHATSAPP */
+/* ==========================================================================
+   CANAL WHATSAPP
+   ========================================================================== */
 .whatsapp-banner {
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -299,7 +310,9 @@ html, body {
   font-size: 15px;
 }
 
-/* TABLA Y FILTROS */
+/* ==========================================================================
+   TABLA Y FILTROS
+   ========================================================================== */
 .table-controls {
   display: flex;
   gap: 1rem;
@@ -316,7 +329,7 @@ html, body {
   font-size: 14px;
   outline: none;
   background-color: rgba(225, 225, 225, 0.281);
-  color: #0f172aaa;
+  color: #0f172a;
 }
 
 .select-filter {
@@ -326,7 +339,7 @@ html, body {
   font-size: 14px;
   outline: none;
   background-color: white;
-  color: #0f172aaa;
+  color: #0f172a;
 }
 
 .table-container {
@@ -379,7 +392,9 @@ html, body {
 .badge.revision { background-color: #fef3c7; color: #b45309; }
 .badge.rechazada { background-color: #fee2e2; color: #b91c1c; }
 
-/* 📱 REGLAS RESPONSIVE (TABLETS Y MÓVILES) */
+/* ==========================================================================
+   REGLAS RESPONSIVE (TABLETS Y MÓVILES)
+   ========================================================================== */
 @media (max-width: 1024px) {
   .dashboard-container {
     flex-direction: column;
@@ -453,7 +468,8 @@ html, body {
     flex-direction: column;
   }
 
-  .search-input, .select-filter {
+  .search-input, 
+  .select-filter {
     width: 100%;
   }
 }

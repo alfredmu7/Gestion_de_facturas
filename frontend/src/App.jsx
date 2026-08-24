@@ -15,7 +15,6 @@ export default function App() {
       const response = await fetch('http://localhost:4000/api/invoices/history');
       if (response.ok) {
         const data = await response.json();
-        // 💡 Soporta si la API devuelve un Array directo o un objeto { success: true, data: [...] }
         const invoiceList = Array.isArray(data) ? data : (data.data || []);
         setInvoices(invoiceList);
       }
@@ -27,7 +26,7 @@ export default function App() {
   useEffect(() => {
     fetchInvoices();
 
-    // 💡 Sincronización automática cada 5 segundos para recibir facturas enviadas por WhatsApp
+    // Sincronización automática cada 5 segundos
     const interval = setInterval(() => {
       fetchInvoices();
     }, 5000);
@@ -36,7 +35,6 @@ export default function App() {
   }, []);
 
   const handleInvoiceProcessed = () => {
-    // Re-obtiene el historial completo directamente de la BD
     fetchInvoices();
   };
 
@@ -88,11 +86,17 @@ export default function App() {
           <>
             <header className="page-header">
               <h1 className="page-title">Panel de Control de Facturación</h1>
-              <p className="page-subtitle">Gestión inteligente, auditoría de agentes y organización automatizada.</p>
+              <p className="page-subtitle">Gestión de facturación, auditoría de agentes y organización automatizada.</p>
             </header>
+
+            {/* Matriz de Métricas e Indicadores Generales */}
             <MetricsHeader invoices={invoices} />
+
+            {/* Carga e Ingestión de Facturas */}
             <InvoiceUploader onInvoiceProcessed={handleInvoiceProcessed} />
-            <InvoiceTable invoices={invoices} />
+
+            {/* Tabla Principal con Mediación de Agentes */}
+            <InvoiceTable invoices={invoices} onInvoiceUpdated={handleInvoiceProcessed} />
           </>
         )}
 
@@ -103,7 +107,7 @@ export default function App() {
               <h1 className="page-title">Mis Facturas</h1>
               <p className="page-subtitle">Historial completo de documentos cargados y procesados.</p>
             </header>
-            <InvoiceTable invoices={invoices} />
+            <InvoiceTable invoices={invoices} onInvoiceUpdated={handleInvoiceProcessed} />
           </>
         )}
 

@@ -76,10 +76,11 @@ export const processAndClassifyInvoice = async (imageBuffer, mimeType) => {
       }
     };
 
-    const result = await model.generateContent([
-      filePart,
-      "Analiza esta factura y extrae la información contable requerida."
-    ]);
+
+const result = await model.generateContent([
+  filePart,
+  "Lee los datos de la factura. Si una descripción no es clara, pon un texto simple y legible, evita términos crudos de OCR."
+]);
 
     const responseText = result.response.text();
 

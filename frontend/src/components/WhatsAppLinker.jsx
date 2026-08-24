@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 export default function WhatsAppLinker() {
-  const [status, setStatus] = useState({ connected: false, qr: null });
+  const [status, setStatus] = useState({ connected: false, qr: null, number: null });
   const [loading, setLoading] = useState(true);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -18,9 +19,34 @@ export default function WhatsAppLinker() {
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!window.confirm('¿Estás seguro de que deseas desvincular este número de WhatsApp?')) {
+      return;
+    }
+
+    setDisconnecting(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/whatsapp/disconnect', {
+        method: 'POST',
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        setStatus({ connected: false, qr: null, number: null });
+        fetchStatus();
+      } else {
+        alert('Error al desvincular: ' + (json.message || json.error));
+      }
+    } catch (err) {
+      console.error('Error al desvincular WhatsApp:', err);
+      alert('Error de conexión con el servidor.');
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   useEffect(() => {
     fetchStatus();
-    // Consulta el estado del QR cada 3 segundos automáticamente
     const interval = setInterval(fetchStatus, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -47,18 +73,48 @@ export default function WhatsAppLinker() {
       {loading ? (
         <p style={{ color: '#94A3B8' }}>Cargando estado...</p>
       ) : status.connected ? (
-        <div style={{
-          padding: '16px',
-          borderRadius: '12px',
-          backgroundColor: '#F0FDF4',
-          border: '1px solid #BBF7D0',
-          color: '#166534',
-          fontWeight: 'bold'
-        }}>
-          ✅ WhatsApp Vinculado y Activo
-          <p style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#15803D', marginTop: '4px' }}>
-            Ya puedes enviar fotos de facturas al chat.
-          </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{
+            padding: '16px',
+            borderRadius: '12px',
+            backgroundColor: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            color: '#166534',
+            fontWeight: 'bold'
+          }}>
+            ✅ WhatsApp Vinculado y Activo
+            {status.number && (
+              <p style={{ fontSize: '0.85rem', color: '#15803D', margin: '4px 0 0 0' }}>
+                📱 <strong>Número:</strong> {status.number}
+              </p>
+            )}
+            <p style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#15803D', marginTop: '4px' }}>
+              Ya puedes enviar fotos de facturas al chat.
+            </p>
+          </div>
+
+          {/* BOTÓN PARA DESLOGUEARSE / DESVINCULAR */}
+          <button
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              border: '1px solid #FECDD3',
+              backgroundColor: '#FFF1F2',
+              color: '#E11D48',
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              cursor: disconnecting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            {disconnecting ? 'Desvinculando...' : '🚪 Desvincular número actual'}
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -68,9 +124,9 @@ export default function WhatsAppLinker() {
                 <img src={status.qr} alt="Código QR WhatsApp" style={{ width: '220px', height: '220px' }} />
               </div>
               <ol style={{ textAlign: 'left', fontSize: '0.85rem', color: '#475569', paddingLeft: '20px', margin: 0 }}>
-                <li>Abre **WhatsApp** en tu teléfono.</li>
-                <li>Ve a **Ajustes** o **Menú** &gt; **Dispositivos vinculados**.</li>
-                <li>Toca en **Vincular un dispositivo** y escanea este código.</li>
+                <li>Abre <strong>WhatsApp</strong> en tu teléfono.</li>
+                <li>Ve a <strong>Ajustes</strong> o <strong>Menú</strong> &gt; <strong>Dispositivos vinculados</strong>.</li>
+                <li>Toca en <strong>Vincular un dispositivo</strong> y escanea este código.</li>
               </ol>
             </>
           ) : (

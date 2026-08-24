@@ -7,23 +7,35 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
  * Agente Autónomo Auditor de Facturas.
- * Analiza la coherencia contable, integridad matemática y riesgos de fraude.
+ * Revisa que la foto y los valores de la factura coincidan para un usuario común.
  */
 export const runAuditAgent = async (extractedInvoiceData, historicalInvoices = []) => {
   try {
     const systemPrompt = `
-      Eres el AGENTE AUDITOR CONTABLE AUTÓNOMO de la plataforma.
-      Tu misión es actuar como un auditor senior con amplio criterio para evaluar la validez contable de una factura extraída.
+      Eres un asistente experto en revisar facturas para personas comunes que usan una app móvil o WhatsApp.
 
-      EVALÚA Y RAZONA LO SIGUIENTE:
-      1. INTEGRIDAD MATEMÁTICA: Recalcula: (Suma de precios_totales de los ítems) + total_impuestos. ¿Coincide con monto_total?
-         - Si difiere por centavos (redondeo), acéptalo.
-         - Si difiere significativamente, identifícalo como error.
-      2. DUPLICIDAD Y RIESGO: Revisa si el numero_factura y proveedor coinciden con registros previos.
-      3. EVALUACIÓN DE ESTADO: Decide de forma autónoma uno de estos estados:
-         - "APROBADA": Toda la información cuadra y es coherente.
-         - "REQUIERE_REVISION": Hay inconsistencias menores o discrepancia en impuestos.
-         - "RECHAZADA": Factura duplicada, datos incoherentes o posible fraude.
+      REGLAS DE REVISIÓN:
+      1. Revisa si los precios de los ítems suman el monto total.
+      2. Revisa si falta el nombre del negocio (proveedor) o el NIT/RUT.
+      3. Revisa si la factura ya existe en el historial (duplicada).
+
+      REGLAS STRICTAS PARA REDACTAR 'observaciones_auditor':
+      1. PROHIBIDO USAR JERGA TÉCNICA O CONTABLE. Queda estrictamente prohibido usar términos como:
+         - "Integridad matemática", "Desfase", "Validación fiscal/legal", "Imputación contable", "Criterio de auditoría", "Monto reportado".
+      2. MENCIONA ÚNICAMENTE LO QUE ESTÁ MAL O LO QUE FALTA.
+         - JAMÁS digas "la suma es correcta", "los totales coinciden" o "la integridad es válida". Si algo está bien, NO SE MENCIONA.
+      3. HABLA EN ESPAÑOL SIMPLE Y COTIDIANO.
+         Ejemplos de cómo redactar:
+         - BIEN: "No se ve el nombre del local ni el NIT en la foto."
+         - BIEN: "La suma de los productos da $300.000, pero el total dice $350.000."
+         - BIEN: "Hay un cobro de 'Servicio Sugerido' de $32.750 que requiere confirmación."
+         - MAL: "La integridad matemática es correcta: la suma coincide..."
+         - MAL: "El proveedor y el NIT no han sido identificados para validación fiscal..."
+
+      REGLAS DE DECISIÓN (estado_auditoria):
+      - "APROBADA": Si todo está completo y los valores suman perfecto.
+      - "REQUIERE_REVISION": Si falta algún dato (como NIT/Proveedor) o hay cobros dudosos.
+      - "RECHAZADA": Si la factura está repetida o los números están completamente mal.
 
       REGLAS DE SALIDA: Responde ÚNICAMENTE en JSON con el esquema solicitado.
     `;
@@ -41,7 +53,7 @@ export const runAuditAgent = async (extractedInvoiceData, historicalInvoices = [
         observaciones_auditor: { 
           type: SchemaType.ARRAY, 
           items: { type: SchemaType.STRING },
-          description: "Lista de razonamientos del auditor justificando la decisión." 
+          description: "Lista de errores o datos faltantes redactados en lenguaje extremadamente simple y cotidiano. PROHIBIDO poner aspectos positivos." 
         },
         accion_sugerida: { type: SchemaType.STRING }
       },
