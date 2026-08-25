@@ -10,8 +10,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middlewares
-app.use(cors());
+// Configuración de CORS única y al inicio
+app.use(cors({
+  origin: '*', // Permite peticiones desde Netlify u otros orígenes
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Rutas principales
@@ -23,15 +28,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Servidor contable con IA activo' });
 });
 
-// Iniciar servidor y cliente de WhatsApp
+// Iniciar servidor
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor corriendo exitosamente en el puerto ${PORT}`);
-  console.log('🔄 Inicializando servicio de WhatsApp...');
-  await initWhatsApp();
+  
+  // Inicializar WhatsApp de forma segura
+  try {
+    console.log('🔄 Inicializando servicio de WhatsApp...');
+    await initWhatsApp();
+  } catch (error) {
+    console.error('⚠️ Error iniciando servicio de WhatsApp:', error.message);
+  }
 });
-// Habilitar CORS para permitir peticiones desde Netlify
-app.use(cors({
-  origin: '*', // O coloca la URL exacta de Netlify: 'https://gestor-facturas.netlify.app'
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
