@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, CheckCircle, AlertCircle, XCircle, ExternalLink, FileText, MessageSquareText, Trash2 } from 'lucide-react';
 import { InvoiceDetailModal } from '../components/InvoiceDetailModal';
+import { deleteInvoice } from '../services/api'; // 👈 Importamos la función centralizada de la API
 
 export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +37,7 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     return new Date(fechaStr).toLocaleDateString('es-CO');
   };
 
-  // Manejo de eliminación
+  // Manejo de eliminación utilizando la API centralizada
   const handleDelete = async (e, id) => {
     e.stopPropagation(); // Evita abrir el modal al hacer clic en borrar
 
@@ -45,18 +46,15 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/api/invoices/${id}`, {
-        method: 'DELETE',
-      });
+      // 👈 Sustituimos la llamada directa a localhost por deleteInvoice(id)
+      const result = await deleteInvoice(id);
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
+      if (result.success) {
         if (onInvoiceUpdated) {
           onInvoiceUpdated(); // Refresca la lista y métricas en el componente padre
         }
       } else {
-        alert(result.error || 'No se pudo eliminar la factura.');
+        alert(result.error || result.message || 'No se pudo eliminar la factura.');
       }
     } catch (error) {
       console.error('Error al eliminar la factura:', error);

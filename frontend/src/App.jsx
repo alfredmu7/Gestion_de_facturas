@@ -4,6 +4,7 @@ import MetricsHeader from './components/MetricsHeader';
 import InvoiceUploader from './components/InvoiceUploader';
 import InvoiceTable from './components/InvoiceTable';
 import WhatsAppChannel from './components/WhatsAppLinker';
+import { getInvoiceHistory } from './services/api';
 import './styles/Dashboard.css';
 
 export default function App() {
@@ -12,12 +13,9 @@ export default function App() {
 
   const fetchInvoices = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/invoices/history');
-      if (response.ok) {
-        const data = await response.json();
-        const invoiceList = Array.isArray(data) ? data : (data.data || []);
-        setInvoices(invoiceList);
-      }
+      const data = await getInvoiceHistory();
+      const invoiceList = Array.isArray(data) ? data : (data.data || []);
+      setInvoices(invoiceList);
     } catch (err) {
       console.error('Error cargando historial:', err);
     }
@@ -26,10 +24,10 @@ export default function App() {
   useEffect(() => {
     fetchInvoices();
 
-    // Sincronización automática cada 5 segundos
+    // Sincronización automática cada 15 segundos de forma segura
     const interval = setInterval(() => {
       fetchInvoices();
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);

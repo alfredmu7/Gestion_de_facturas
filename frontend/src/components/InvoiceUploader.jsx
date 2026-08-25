@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, Image, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { uploadInvoice } from '../services/api'; // 👈 Importamos la función de la API
 
 export default function InvoiceUploader({ onInvoiceProcessed }) {
   const [queue, setQueue] = useState([]);
@@ -65,22 +66,14 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
       // 1. Cambiar estado a 'processing'
       setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing' } : q));
 
-      const formData = new FormData();
-      formData.append('factura', item.file);
-
       try {
-        const response = await fetch('http://localhost:4000/api/invoices/upload', {
-          method: 'POST',
-          body: formData,
-        });
+        // 2. Usar uploadInvoice del servicio API (conecta automáticamente a Render)
+        const data = await uploadInvoice(item.file);
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Error procesando la factura');
-
-        // 2. Cambiar estado a 'completed'
+        // 3. Cambiar estado a 'completed'
         setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'completed' } : q));
 
-        // 3. Notificar al Dashboard
+        // 4. Notificar al Dashboard
         if (onInvoiceProcessed) {
           onInvoiceProcessed(data.data);
         }
@@ -143,7 +136,7 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
                 key={item.id} 
                 style={{ 
                   display: 'flex', 
-                  justify: 'space-between', 
+                  justifyContent: 'space-between', 
                   alignItems: 'center', 
                   padding: '10px 14px', 
                   backgroundColor: '#f8fafc', 

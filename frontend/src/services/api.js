@@ -3,7 +3,10 @@ const isProduction = import.meta.env.PROD;
 
 // En producción usa Render; en desarrollo local usa localhost
 // URL directa apuntando a Render (elimina cualquier ambigüedad de Vite en Netlify)
-const BASE_URL = 'https://gestion-de-facturas.onrender.com/api';
+const BASE_URL = isProduction 
+  ? 'https://gestion-de-facturas.onrender.com/api' 
+  : 'http://localhost:4000/api';
+
 /**
  * Función helper genérica para realizar peticiones HTTP con Fetch API
  * @param {string} endpoint - La ruta a la que llamaremos (ej: '/health' o '/invoices')
@@ -44,10 +47,29 @@ export const getInvoiceHistory = async () => {
 };
 
 /**
+ * Elimina una factura específica por ID
+ * @param {string|number} invoiceId - ID de la factura a eliminar
+ */
+export const deleteInvoice = async (invoiceId) => {
+  return await fetchAPI(`/invoices/${invoiceId}`, {
+    method: 'DELETE',
+  });
+};
+
+/**
  * Obtiene el estado actual del bot de WhatsApp
  */
 export const getWhatsAppStatus = async () => {
-  return await fetchAPI('/invoices/whatsapp-status');
+  return await fetchAPI('/whatsapp/status');
+};
+
+/**
+ * Desvincula la sesión actual de WhatsApp
+ */
+export const disconnectWhatsApp = async () => {
+  return await fetchAPI('/whatsapp/disconnect', {
+    method: 'POST',
+  });
 };
 
 /**

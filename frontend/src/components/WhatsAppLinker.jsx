@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getWhatsAppStatus, disconnectWhatsApp } from '../services/api'; // 👈 Importamos las funciones del servicio
 
 export default function WhatsAppLinker() {
   const [status, setStatus] = useState({ connected: false, qr: null, number: null });
@@ -7,8 +8,8 @@ export default function WhatsAppLinker() {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/whatsapp/status');
-      const json = await res.json();
+      // Usamos la función de api.js en lugar de fetch('http://localhost:4000/...')
+      const json = await getWhatsAppStatus();
       if (json.success) {
         setStatus(json.data);
       }
@@ -26,10 +27,8 @@ export default function WhatsAppLinker() {
 
     setDisconnecting(true);
     try {
-      const res = await fetch('http://localhost:4000/api/whatsapp/disconnect', {
-        method: 'POST',
-      });
-      const json = await res.json();
+      // Usamos la función de api.js para desvincular
+      const json = await disconnectWhatsApp();
 
       if (json.success) {
         setStatus({ connected: false, qr: null, number: null });
@@ -93,7 +92,6 @@ export default function WhatsAppLinker() {
             </p>
           </div>
 
-          {/* BOTÓN PARA DESLOGUEARSE / DESVINCULAR */}
           <button
             onClick={handleDisconnect}
             disabled={disconnecting}
