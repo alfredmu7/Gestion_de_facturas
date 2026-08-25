@@ -1,7 +1,10 @@
-// URL base dinámica: usa la variable de Netlify en producción o localhost en desarrollo
-const BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : 'http://localhost:4000/api';
+// Detecta si la aplicación está compilada para producción
+const isProduction = import.meta.env.PROD;
+
+// En producción usa Render; en desarrollo local usa localhost
+const BASE_URL = isProduction 
+  ? 'https://gestion-de-facturas.onrender.com/api'
+  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:4000/api');
 
 /**
  * Función helper genérica para realizar peticiones HTTP con Fetch API
