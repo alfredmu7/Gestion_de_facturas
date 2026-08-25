@@ -29,3 +29,9 @@ app.listen(PORT, async () => {
   console.log('🔄 Inicializando servicio de WhatsApp...');
   await initWhatsApp();
 });
+// Habilitar CORS para permitir peticiones desde Netlify
+app.use(cors({
+  origin: '*', // O coloca la URL exacta de Netlify: 'https://gestor-facturas.netlify.app'
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
