@@ -1,6 +1,7 @@
 // Detecta si la aplicación está compilada para producción
 const isProduction = import.meta.env.PROD;
 
+// En producción usa Render; en desarrollo local usa localhost
 // URL directa apuntando a Render (elimina cualquier ambigüedad de Vite en Netlify)
 const BASE_URL = 'https://gestion-de-facturas.onrender.com/api';
 /**
