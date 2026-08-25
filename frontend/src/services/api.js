@@ -1,11 +1,8 @@
 // Detecta si la aplicación está compilada para producción
 const isProduction = import.meta.env.PROD;
 
-// En producción usa Render; en desarrollo local usa localhost
-const BASE_URL = isProduction 
-  ? 'https://gestion-de-facturas.onrender.com/api'
-  : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:4000/api');
-
+// URL directa apuntando a Render (elimina cualquier ambigüedad de Vite en Netlify)
+const BASE_URL = 'https://gestion-de-facturas.onrender.com/api';
 /**
  * Función helper genérica para realizar peticiones HTTP con Fetch API
  * @param {string} endpoint - La ruta a la que llamaremos (ej: '/health' o '/invoices')
