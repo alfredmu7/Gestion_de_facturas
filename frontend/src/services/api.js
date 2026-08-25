@@ -64,7 +64,16 @@ export const getWhatsAppStatus = async () => {
 };
 
 /**
- * Desvincula la sesión actual de WhatsApp
+ * Inicia la conexión y generación de código QR de WhatsApp bajo demanda
+ */
+export const connectWhatsApp = async () => {
+  return await fetchAPI('/whatsapp/connect', {
+    method: 'POST',
+  });
+};
+
+/**
+ * Desvincula la sesión o detiene/cancela la generación de QR de WhatsApp
  */
 export const disconnectWhatsApp = async () => {
   return await fetchAPI('/whatsapp/disconnect', {

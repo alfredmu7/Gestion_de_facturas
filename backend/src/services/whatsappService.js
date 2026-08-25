@@ -26,8 +26,17 @@ let sock = null;
 let currentQR = null;
 let isConnected = false;
 let connectedNumber = null;
+let isManualStop = false; // Flag para bloquear reintentos automáticos si el usuario detiene el servicio
 
 export async function initWhatsApp() {
+  // Si ya existe un socket activo, no creamos otro en paralelo
+  if (sock) {
+    console.log('⚠️ [WhatsApp] Ya existe una instancia activa.');
+    return;
+  }
+
+  isManualStop = false; // Reseteamos la bandera al iniciar
+
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version } = await fetchLatestBaileysVersion();
@@ -45,8 +54,8 @@ export async function initWhatsApp() {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      // 📲 Solo generamos la Data URL para que la interfaz web / frontend renderice la imagen
-      if (qr) {
+      // 📲 Generar Data URL para el frontend
+      if (qr && !isManualStop) {
         currentQR = await QRCode.toDataURL(qr);
         isConnected = false;
         connectedNumber = null;
@@ -55,7 +64,7 @@ export async function initWhatsApp() {
 
       if (connection === 'open') {
         isConnected = true;
-        currentQR = null; // Limpiar QR
+        currentQR = null;
         const rawJid = sock.user?.id || '';
         const phoneNumber = rawJid.split(':')[0].split('@')[0];
         connectedNumber = phoneNumber ? `+${phoneNumber}` : null;
@@ -66,22 +75,33 @@ export async function initWhatsApp() {
         isConnected = false;
         connectedNumber = null;
         currentQR = null;
-        
+
         const statusCode = (lastDisconnect?.error)?.output?.statusCode;
         const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
         
         console.log(`⚠️ [WhatsApp] Conexión cerrada. Motivo status: ${statusCode}`);
+
+        // 🛑 SI FUE DETENIDO MANUALLMENTE, NO REINTENTAR
+        if (isManualStop) {
+          console.log('🛑 [WhatsApp] Servicio detenido manualmente por el usuario. Sin reconexión.');
+          return;
+        }
 
         if (isLoggedOut) {
           console.log('🛑 [WhatsApp] Credenciales caducadas o sesión cerrada. Limpiando carpeta de autenticación...');
           if (fs.existsSync(AUTH_DIR)) {
             fs.rmSync(AUTH_DIR, { recursive: true, force: true });
           }
-          console.log('🔄 Reintentando inicialización para generar un nuevo QR...');
-          setTimeout(() => initWhatsApp(), 2000);
-        } else {
-          setTimeout(() => initWhatsApp(), 3000);
         }
+
+        // Reconexión automática solo si NO fue una parada manual
+        console.log('🔄 Reintentando inicialización en 3 segundos...');
+        setTimeout(() => {
+          if (!isManualStop) {
+            sock = null;
+            initWhatsApp();
+          }
+        }, 3000);
       }
     });
 
@@ -91,14 +111,12 @@ export async function initWhatsApp() {
       for (const msg of messages) {
         const senderJid = msg.key.remoteJid;
 
-        // 1. FILTRO DE MENSAJES PROPIOS Y GRUPOS
         if (!senderJid || msg.key.fromMe || senderJid.endsWith('@g.us') || senderJid.endsWith('@broadcast')) {
           continue;
         }
 
         const messageType = Object.keys(msg.message || {})[0];
 
-        // 2. CASO A: INGESTIÓN DE IMAGEN DE FACTURA
         if (messageType === 'imageMessage') {
           console.log(`📩 Foto de factura recibida en chat privado de: ${senderJid}`);
 
@@ -165,8 +183,6 @@ export async function initWhatsApp() {
             }, { quoted: msg });
           }
         }
-
-        // 3. CASO B: RESPUESTA DE TEXTO / ACLARACIÓN (AGENTE 3)
         else if (messageType === 'conversation' || messageType === 'extendedTextMessage') {
           const userText = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
@@ -210,11 +226,16 @@ export async function initWhatsApp() {
   }
 }
 
-export async function logoutWhatsApp() {
+/**
+ * Detiene y apaga totalmente el cliente de WhatsApp sin reintentos automáticos.
+ */
+export async function stopWhatsApp() {
   try {
+    isManualStop = true; // Bloqueamos cualquier callback de reconexión
+
     if (sock) {
+      sock.ev.removeAllListeners(); // Quitamos los listeners de eventos
       await sock.logout().catch(() => {});
-      sock.ev.removeAllListeners();
       sock.end();
       sock = null;
     }
@@ -225,16 +246,13 @@ export async function logoutWhatsApp() {
 
     if (fs.existsSync(AUTH_DIR)) {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      console.log('🗑️ Credenciales de WhatsApp eliminadas correctamente.');
+      console.log('🗑️ Credenciales de WhatsApp limpiadas correctamente.');
     }
 
-    setTimeout(() => {
-      initWhatsApp();
-    }, 1000);
-
+    console.log('🛑 Servicio de WhatsApp detenido y ocultado.');
     return true;
   } catch (error) {
-    console.error('Error al desvincular WhatsApp:', error);
+    console.error('Error al detener servicio de WhatsApp:', error);
     throw error;
   }
 }

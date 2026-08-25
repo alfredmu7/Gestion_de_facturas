@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
-import { initWhatsApp } from './services/whatsappService.js';
 
 dotenv.config();
 
@@ -29,14 +28,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo exitosamente en el puerto ${PORT}`);
-  
-  // Inicializar WhatsApp de forma segura
-  try {
-    console.log('🔄 Inicializando servicio de WhatsApp...');
-    await initWhatsApp();
-  } catch (error) {
-    console.error('⚠️ Error iniciando servicio de WhatsApp:', error.message);
-  }
+  console.log('ℹ️ El servicio de WhatsApp se iniciará bajo demanda desde el frontend.');
 });

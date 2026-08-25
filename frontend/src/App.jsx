@@ -14,7 +14,7 @@ export default function App() {
   const fetchInvoices = async () => {
     try {
       const data = await getInvoiceHistory();
-      const invoiceList = Array.isArray(data) ? data : (data.data || []);
+      const invoiceList = Array.isArray(data) ? data : (data?.data || []);
       setInvoices(invoiceList);
     } catch (err) {
       console.error('Error cargando historial:', err);
@@ -23,13 +23,7 @@ export default function App() {
 
   useEffect(() => {
     fetchInvoices();
-
-    // Sincronización automática optimizada cada 60 segundos
-    const interval = setInterval(() => {
-      fetchInvoices();
-    }, 60000);
-
-    return () => clearInterval(interval);
+    // Se elimina el setInterval para cortar de raíz el bucle repetitivo de consultas
   }, []);
 
   const handleInvoiceProcessed = () => {
