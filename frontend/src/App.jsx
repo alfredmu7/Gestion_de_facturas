@@ -24,10 +24,10 @@ export default function App() {
   useEffect(() => {
     fetchInvoices();
 
-    // Sincronización automática cada 15 segundos de forma segura
+    // Sincronización automática optimizada cada 60 segundos
     const interval = setInterval(() => {
       fetchInvoices();
-    }, 15000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);
