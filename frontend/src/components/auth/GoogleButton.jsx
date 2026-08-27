@@ -4,13 +4,14 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export const GoogleButton = ({ onSuccess, onError }) => {
   const googleButtonRef = useRef(null);
+  // Ref global para evitar reinicializar aunque React re-renderice
   const isInitialized = useRef(false);
 
   const handleCallbackResponse = useCallback(
     (response) => {
       if (response.credential) {
         onSuccess(response.credential);
-      } else {
+      } else if (onError) {
         onError('No se obtuvo respuesta de autenticación de Google.');
       }
     },
@@ -18,15 +19,12 @@ export const GoogleButton = ({ onSuccess, onError }) => {
   );
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn('VITE_GOOGLE_CLIENT_ID no configurado');
-      return;
-    }
+    if (!GOOGLE_CLIENT_ID) return;
 
-    const renderGoogleButton = () => {
+    const initAndRender = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      // Se inicializa UNA sola vez globalmente para evitar logs duplicados
+      // 1. Inicializar una sola vez
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -37,7 +35,7 @@ export const GoogleButton = ({ onSuccess, onError }) => {
         isInitialized.current = true;
       }
 
-      // Limpia contenedor y renderiza el botón nativo
+      // 2. Renderizar el botón sobre el contenedor limpio
       googleButtonRef.current.innerHTML = '';
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
@@ -49,11 +47,9 @@ export const GoogleButton = ({ onSuccess, onError }) => {
       });
     };
 
-    // Si la librería de Google ya existe en window
     if (window.google?.accounts?.id) {
-      renderGoogleButton();
+      initAndRender();
     } else {
-      // Inyección única del script
       let script = document.getElementById('google-jssdk');
       if (!script) {
         script = document.createElement('script');
@@ -64,7 +60,7 @@ export const GoogleButton = ({ onSuccess, onError }) => {
         document.body.appendChild(script);
       }
 
-      const handleScriptLoad = () => renderGoogleButton();
+      const handleScriptLoad = () => initAndRender();
       script.addEventListener('load', handleScriptLoad);
 
       return () => {
