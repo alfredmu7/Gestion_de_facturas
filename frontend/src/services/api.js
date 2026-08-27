@@ -1,7 +1,6 @@
 // Detecta si la aplicación está compilada para producción
 const isProduction = import.meta.env.PROD;
 
-// En producción usa Render; en desarrollo local usa localhost
 // URL directa apuntando a Render (elimina cualquier ambigüedad de Vite en Netlify)
 const BASE_URL = isProduction 
   ? 'https://gestion-de-facturas.onrender.com/api' 
@@ -15,15 +14,39 @@ const BASE_URL = isProduction
 export const fetchAPI = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
 
-  // Configuración por defecto
+  // 1. Obtener token del localStorage si existe
+  const token = localStorage.getItem('token');
+
+  // 2. Preparar encabezados
+  const headers = {
+    ...options.headers,
+  };
+
+  // Si enviamos JSON y no es FormData, aseguramos Content-Type
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // Adjuntamos el Token JWT automáticamente en peticiones autenticadas
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // 3. Configuración de la petición
   const config = {
     method: options.method || 'GET',
-    headers: options.headers || {},
+    headers,
     ...options,
   };
 
   try {
     const response = await fetch(url, config);
+
+    // Si el servidor retorna 401 (No autorizado) o 403 (Prohibido/Token expirado)
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
 
     // Verificamos si la respuesta fue exitosa (status 200-299)
     if (!response.ok) {
@@ -39,52 +62,49 @@ export const fetchAPI = async (endpoint, options = {}) => {
   }
 };
 
-/**
- * Obtiene el historial completo de facturas desde PostgreSQL/Supabase
- */
+/* ==========================================
+   METODOS DE AUTENTICACION
+   ========================================== */
+
+export const loginUser = async (email, password) => {
+  return await fetchAPI('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+};
+
+export const registerUser = async (nombre, email, password) => {
+  return await fetchAPI('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ nombre, email, password }),
+  });
+};
+
+export const googleLoginUser = async (idToken) => {
+  return await fetchAPI('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  });
+};
+
+export const getMe = async () => {
+  return await fetchAPI('/auth/me');
+};
+
+/* ==========================================
+   METODOS DE FACTURAS
+   ========================================== */
+
 export const getInvoiceHistory = async () => {
   return await fetchAPI('/invoices/history');
 };
 
-/**
- * Elimina una factura específica por ID
- * @param {string|number} invoiceId - ID de la factura a eliminar
- */
 export const deleteInvoice = async (invoiceId) => {
   return await fetchAPI(`/invoices/${invoiceId}`, {
     method: 'DELETE',
   });
 };
 
-/**
- * Obtiene el estado actual del bot de WhatsApp
- */
-export const getWhatsAppStatus = async () => {
-  return await fetchAPI('/whatsapp/status');
-};
-
-/**
- * Inicia la conexión y generación de código QR de WhatsApp bajo demanda
- */
-export const connectWhatsApp = async () => {
-  return await fetchAPI('/whatsapp/connect', {
-    method: 'POST',
-  });
-};
-
-/**
- * Desvincula la sesión o detiene/cancela la generación de QR de WhatsApp
- */
-export const disconnectWhatsApp = async () => {
-  return await fetchAPI('/whatsapp/disconnect', {
-    method: 'POST',
-  });
-};
-
-/**
- * Sube una nueva factura (Imagen o PDF) para procesamiento (Agentes 1 y 2)
- * @param {File} file - Archivo seleccionado en el input de React
- */
 export const uploadInvoice = async (file) => {
   const formData = new FormData();
   formData.append('factura', file);
@@ -92,26 +112,36 @@ export const uploadInvoice = async (file) => {
   return await fetchAPI('/invoices/upload', {
     method: 'POST',
     body: formData,
-    // Nota: No pasamos 'Content-Type' en headers para que el navegador configure automáticamente el boundary de FormData
   });
 };
 
-/**
- * Envia una aclaración/conversación para ajustar una factura en revisión (Agente 3 - Mediador)
- * @param {string} invoiceId - ID de la factura a ajustar
- * @param {string} userMessage - Mensaje o aclaración del usuario
- * @param {Array} chatHistory - Historial previo de la conversación en la sesión
- */
 export const resolveInvoiceReview = async (invoiceId, userMessage, chatHistory = []) => {
   return await fetchAPI('/invoices/resolve-review', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({
       invoiceId,
       userMessage,
       chatHistory,
     }),
+  });
+};
+
+/* ==========================================
+   METODOS DE WHATSAPP
+   ========================================== */
+
+export const getWhatsAppStatus = async () => {
+  return await fetchAPI('/whatsapp/status');
+};
+
+export const connectWhatsApp = async () => {
+  return await fetchAPI('/whatsapp/connect', {
+    method: 'POST',
+  });
+};
+
+export const disconnectWhatsApp = async () => {
+  return await fetchAPI('/whatsapp/disconnect', {
+    method: 'POST',
   });
 };

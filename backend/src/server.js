@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
+import authRoutes from './routes/authRoutes.js'; //  1. Importar rutas de auth
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(cors({
 app.use(express.json());
 
 // Rutas principales
+app.use('/api/auth', authRoutes); //  2. Usar rutas de auth
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 

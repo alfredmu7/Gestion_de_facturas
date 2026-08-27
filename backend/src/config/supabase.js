@@ -1,17 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
-// Cargo mis variables de entorno para obtener las llaves de acceso
+// Cargar variables de entorno
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
-// 📌 Usamos SERVICE_ROLE_KEY para que el servidor backend tenga permisos totales de eliminación (bypass RLS)
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+// 📌 Prioriza SUPABASE_SERVICE_ROLE_KEY para ignorar RLS en el backend, con fallback a ANON_KEY
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
 
-// Valido que las credenciales existan en mi archivo .env
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Me falta configurar SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en mi archivo .env');
+// Validar credenciales
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Error crítico: Falta SUPABASE_URL o las llaves de acceso en el archivo .env del backend.');
 }
 
-// Inicializo y exporto mi cliente de Supabase para consultar mi DB y Storage
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Cliente de Supabase optimizado para Node.js / Backend
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});

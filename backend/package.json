@@ -11,14 +11,16 @@
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.45.0",
     "@whiskeysockets/baileys": "^6.7.24",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "google-auth-library": "^11.0.2",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   }
-  
 }
