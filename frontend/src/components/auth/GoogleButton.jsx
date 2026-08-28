@@ -12,20 +12,26 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
     const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      // Garantiza que la inicialización solo ocurra una vez
+      // 1. Limpiar cualquier selección previa de Google en el navegador
+      window.google.accounts.id.disableAutoSelect();
+
+      // 2. Inicializar la librería asegurando prompt de selección
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
             if (response.credential) onSuccess(response.credential);
-            else if (onError) onError('Error de autenticación con Google');
+            else if (onError) onError('Error con Google Auth');
           },
-          auto_select: false,
+          auto_select: false,          // No autoseleccionar
+          prompt_parent_id: undefined, // Desactiva comportamientos pegajosos
         });
         isInitialized.current = true;
       }
 
       googleButtonRef.current.innerHTML = '';
+      
+      // 3. Renderizar botón
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
         size: 'large',
@@ -33,6 +39,7 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
         text: 'continue_with',
         locale: 'es',
         shape: 'rectangular',
+        type: 'standard', // Forzar renderizado estándar del botón
       });
     };
 
@@ -49,7 +56,6 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
         document.body.appendChild(script);
       }
       script.addEventListener('load', renderBtn);
-      return () => script.removeEventListener('load', renderBtn);
     }
   }, []);
 

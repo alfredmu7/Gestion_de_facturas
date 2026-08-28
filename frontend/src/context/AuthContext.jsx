@@ -11,20 +11,24 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Definimos logout primero usando useCallback para poder invocarlo de forma segura en initAuth
+  // Logout mejorado: revoca el token en el cliente de Google y limpia datos
   const logout = useCallback(() => {
+    if (user?.email && window.google?.accounts?.id) {
+      window.google.accounts.id.revoke(user.email, () => {
+        console.log('Sesión de Google revocada correctamente.');
+      });
+    }
+
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.disableAutoSelect();
+    }
+
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Opcional: Si el SDK de Google está presente, desvincula la cuenta de One Tap
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.disableAutoSelect();
-    }
-  }, []);
+  }, [user]);
 
-  // Valida la sesión con el backend al montar el componente
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('token');
