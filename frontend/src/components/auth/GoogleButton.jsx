@@ -1,7 +1,9 @@
+// src/components/auth/GoogleButton.jsx
 import React, { useEffect, useRef, memo } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+// Usar 'export const' en lugar de 'export default'
 export const GoogleButton = memo(({ onSuccess, onError }) => {
   const googleButtonRef = useRef(null);
   const isInitialized = useRef(false);
@@ -12,23 +14,18 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
     const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      // 1. Inicializar una sola vez a nivel de cliente
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
-            if (response.credential) {
-              onSuccess(response.credential);
-            } else if (onError) {
-              onError('No se obtuvo credencial de Google.');
-            }
+            if (response.credential) onSuccess(response.credential);
+            else if (onError) onError('Error con Google Auth');
           },
-          auto_select: false, // Previene la selección automática forzada
+          auto_select: false,
         });
         isInitialized.current = true;
       }
 
-      // 2. Limpiar e inyectar el botón en el DOM
       googleButtonRef.current.innerHTML = '';
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
@@ -54,7 +51,7 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
       }
       script.addEventListener('load', renderBtn);
     }
-  }, []); // [] asegura que el ciclo solo se ejecute al montar el componente
+  }, []);
 
   return <div ref={googleButtonRef} style={{ minHeight: '40px' }} />;
 });
