@@ -1,11 +1,11 @@
-
-import { useNavigate } from 'react-router-dom'; // 1. Importar el hook de navegaciónimport React, { useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { GoogleButton } from './GoogleButton';
-import { useState } from 'react';
 
 export const LoginForm = ({ onSwitchToRegister }) => {
+  const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
   
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -16,6 +16,7 @@ export const LoginForm = ({ onSwitchToRegister }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Login tradicional con Correo y Contraseña
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -23,6 +24,7 @@ export const LoginForm = ({ onSwitchToRegister }) => {
 
     try {
       await login(formData.email, formData.password);
+      navigate('/dashboard'); // <-- Agregado para redireccionar al usuario tradicional
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión.');
     } finally {
@@ -30,21 +32,19 @@ export const LoginForm = ({ onSwitchToRegister }) => {
     }
   };
 
-  // Dentro de tu componente LoginForm / AuthPage:
-const navigate = useNavigate();
-
-const handleGoogleSuccess = async (idToken) => {
-  setError(null);
-  setSubmitting(true);
-  try {
-    await googleLogin(idToken);
-    navigate('/dashboard'); // 2. Redirigir explícitamente al completar con éxito
-  } catch (err) {
-    setError(err.message || 'Error al autenticar con Google.');
-  } finally {
-    setSubmitting(false);
-  }
-};
+  // Login con Google
+  const handleGoogleSuccess = async (idToken) => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await googleLogin(idToken);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Error al autenticar con Google.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="auth-card">

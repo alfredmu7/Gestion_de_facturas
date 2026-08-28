@@ -1,16 +1,28 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import { loginUser, registerUser, googleLoginUser, getMe } from '../services/api';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Recupera token y usuario iniciales desde localStorage
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [loading, setLoading] = useState(true);
+
+  // Definimos logout primero usando useCallback para poder invocarlo de forma segura en initAuth
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // Opcional: Si el SDK de Google está presente, desvincula la cuenta de One Tap
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.disableAutoSelect();
+    }
+  }, []);
 
   // Valida la sesión con el backend al montar el componente
   useEffect(() => {
@@ -19,24 +31,24 @@ export const AuthProvider = ({ children }) => {
       if (storedToken) {
         try {
           const response = await getMe();
-          // Asegúrate de mapear según como tu backend envíe los datos
-          const userData = response.data.user || response.data;
+          const userData = response.data?.user || response.data;
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
           console.error('Sesión expirada o no válida:', error.message);
           logout();
         }
-      } else {
-        setLoading(false);
       }
       setLoading(false);
     };
 
     initAuth();
-  }, []);
+  }, [logout]);
 
   const handleAuthSuccess = (userData, userToken) => {
+    if (!userData || !userToken) {
+      throw new Error('Respuesta de autenticación incompleta (falta token o usuario).');
+    }
     setUser(userData);
     setToken(userToken);
     localStorage.setItem('token', userToken);
@@ -45,31 +57,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await loginUser(email, password);
-    const { user: userData, token: userToken } = response.data;
-    handleAuthSuccess(userData, userToken);
+    const data = response.data?.data || response.data;
+    handleAuthSuccess(data.user || data.usuario, data.token);
     return response;
   };
 
   const register = async (nombre, email, password) => {
     const response = await registerUser(nombre, email, password);
-    const { user: userData, token: userToken } = response.data;
-    handleAuthSuccess(userData, userToken);
+    const data = response.data?.data || response.data;
+    if (data.token) {
+      handleAuthSuccess(data.user || data.usuario, data.token);
+    }
     return response;
   };
 
   const googleLogin = async (idToken) => {
     const response = await googleLoginUser(idToken);
-    // Tolera diferentes formatos de respuesta del backend ({ data: { user, token } } o { user, token })
-    const data = response.data.data || response.data;
-    handleAuthSuccess(data.user, data.token);
+    const data = response.data?.data || response.data;
+    handleAuthSuccess(data.user || data.usuario, data.token);
     return response;
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
   };
 
   return (

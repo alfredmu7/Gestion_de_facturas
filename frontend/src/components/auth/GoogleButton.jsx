@@ -1,41 +1,34 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-export const GoogleButton = ({ onSuccess, onError }) => {
+export const GoogleButton = memo(({ onSuccess, onError }) => {
   const googleButtonRef = useRef(null);
-  // Ref global para evitar reinicializar aunque React re-renderice
   const isInitialized = useRef(false);
-
-  const handleCallbackResponse = useCallback(
-    (response) => {
-      if (response.credential) {
-        onSuccess(response.credential);
-      } else if (onError) {
-        onError('No se obtuvo respuesta de autenticación de Google.');
-      }
-    },
-    [onSuccess, onError]
-  );
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
-    const initAndRender = () => {
+    const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      // 1. Inicializar una sola vez
+      // 1. Inicializar una sola vez a nivel de cliente
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: handleCallbackResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
+          callback: (response) => {
+            if (response.credential) {
+              onSuccess(response.credential);
+            } else if (onError) {
+              onError('No se obtuvo credencial de Google.');
+            }
+          },
+          auto_select: false, // Previene la selección automática forzada
         });
         isInitialized.current = true;
       }
 
-      // 2. Renderizar el botón sobre el contenedor limpio
+      // 2. Limpiar e inyectar el botón en el DOM
       googleButtonRef.current.innerHTML = '';
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
@@ -48,7 +41,7 @@ export const GoogleButton = ({ onSuccess, onError }) => {
     };
 
     if (window.google?.accounts?.id) {
-      initAndRender();
+      renderBtn();
     } else {
       let script = document.getElementById('google-jssdk');
       if (!script) {
@@ -59,15 +52,9 @@ export const GoogleButton = ({ onSuccess, onError }) => {
         script.defer = true;
         document.body.appendChild(script);
       }
-
-      const handleScriptLoad = () => initAndRender();
-      script.addEventListener('load', handleScriptLoad);
-
-      return () => {
-        script.removeEventListener('load', handleScriptLoad);
-      };
+      script.addEventListener('load', renderBtn);
     }
-  }, [handleCallbackResponse]);
+  }, []); // [] asegura que el ciclo solo se ejecute al montar el componente
 
-  return <div ref={googleButtonRef} className="google-btn-wrapper" />;
-};
+  return <div ref={googleButtonRef} style={{ minHeight: '40px' }} />;
+});
