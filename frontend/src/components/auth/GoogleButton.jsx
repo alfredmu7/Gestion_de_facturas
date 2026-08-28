@@ -1,9 +1,7 @@
-// src/components/auth/GoogleButton.jsx
 import React, { useEffect, useRef, memo } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-// Usar 'export const' en lugar de 'export default'
 export const GoogleButton = memo(({ onSuccess, onError }) => {
   const googleButtonRef = useRef(null);
   const isInitialized = useRef(false);
@@ -14,12 +12,13 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
     const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
+      // Garantiza que la inicialización solo ocurra una vez
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
             if (response.credential) onSuccess(response.credential);
-            else if (onError) onError('Error con Google Auth');
+            else if (onError) onError('Error de autenticación con Google');
           },
           auto_select: false,
         });
@@ -50,6 +49,7 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
         document.body.appendChild(script);
       }
       script.addEventListener('load', renderBtn);
+      return () => script.removeEventListener('load', renderBtn);
     }
   }, []);
 
