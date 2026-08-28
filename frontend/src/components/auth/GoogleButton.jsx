@@ -12,10 +12,8 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
     const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      // 1. Limpiar cualquier selección previa de Google en el navegador
       window.google.accounts.id.disableAutoSelect();
 
-      // 2. Inicializar la librería asegurando prompt de selección
       if (!isInitialized.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -23,15 +21,14 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
             if (response.credential) onSuccess(response.credential);
             else if (onError) onError('Error con Google Auth');
           },
-          auto_select: false,          // No autoseleccionar
-          prompt_parent_id: undefined, // Desactiva comportamientos pegajosos
+          auto_select: false,
+          prompt_parent_id: undefined,
         });
         isInitialized.current = true;
       }
 
       googleButtonRef.current.innerHTML = '';
       
-      // 3. Renderizar botón
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
         size: 'large',
@@ -39,14 +36,15 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
         text: 'continue_with',
         locale: 'es',
         shape: 'rectangular',
-        type: 'standard', // Forzar renderizado estándar del botón
+        type: 'standard',
       });
     };
+
+    let script = document.getElementById('google-jssdk');
 
     if (window.google?.accounts?.id) {
       renderBtn();
     } else {
-      let script = document.getElementById('google-jssdk');
       if (!script) {
         script = document.createElement('script');
         script.id = 'google-jssdk';
@@ -57,7 +55,14 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
       }
       script.addEventListener('load', renderBtn);
     }
-  }, []);
+
+    // Retorno de limpieza para remover el listener al desmontar
+    return () => {
+      if (script) {
+        script.removeEventListener('load', renderBtn);
+      }
+    };
+  }, [onSuccess, onError]);
 
   return <div ref={googleButtonRef} style={{ minHeight: '40px' }} />;
 });

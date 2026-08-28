@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // 1. Importar useNavigate
 import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const RegisterForm = ({ onSwitchToLogin }) => {
+  const navigate = useNavigate(); // 2. Instanciar navigate
   const { register } = useAuth();
 
   const [formData, setFormData] = useState({ nombre: '', email: '', password: '' });
@@ -26,6 +28,7 @@ export const RegisterForm = ({ onSwitchToLogin }) => {
 
     try {
       await register(formData.nombre, formData.email, formData.password);
+      navigate('/dashboard'); // 3. Redirigir al dashboard al registrar exitosamente
     } catch (err) {
       setError(err.message || 'Error en el registro.');
     } finally {

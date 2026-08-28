@@ -1,7 +1,8 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { loginUser, registerUser, googleLoginUser, getMe } from '../services/api';
 
-export const AuthContext = createContext();
+// 1. Crear y exportar el Contexto (solo UNA vez aquí)
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
@@ -11,7 +12,6 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Logout mejorado: revoca el token en el cliente de Google y limpia datos
   const logout = useCallback(() => {
     if (user?.email && window.google?.accounts?.id) {
       window.google.accounts.id.revoke(user.email, () => {

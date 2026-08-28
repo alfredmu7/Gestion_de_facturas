@@ -1,60 +1,58 @@
-// Detecta si la aplicación está compilada para producción
 const isProduction = import.meta.env.PROD;
 
-// URL directa apuntando a Render (elimina cualquier ambigüedad de Vite en Netlify)
 const BASE_URL = isProduction 
   ? 'https://gestion-de-facturas.onrender.com/api' 
   : 'http://localhost:4000/api';
 
 /**
- * Función helper genérica para realizar peticiones HTTP con Fetch API
- * @param {string} endpoint - La ruta a la que llamaremos (ej: '/health' o '/invoices')
- * @param {object} options - Opciones de la petición (method, headers, body, etc.)
+ * Helper genérico para peticiones HTTP
  */
 export const fetchAPI = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
-
-  // 1. Obtener token del localStorage si existe
   const token = localStorage.getItem('token');
 
-  // 2. Preparar encabezados
+  // Separar customHeaders y restOptions para evitar sobreescrituras no deseadas
+  const { headers: customHeaders, ...restOptions } = options;
+
   const headers = {
-    ...options.headers,
+    ...customHeaders,
   };
 
-  // Si enviamos JSON y no es FormData, aseguramos Content-Type
+  // Asignar Content-Type solo si no es FormData y no fue definido previamente
   if (!(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Adjuntamos el Token JWT automáticamente en peticiones autenticadas
+  // Adjuntar token si existe
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // 3. Configuración de la petición
   const config = {
-    method: options.method || 'GET',
+    method: 'GET',
+    ...restOptions,
     headers,
-    ...options,
   };
 
   try {
     const response = await fetch(url, config);
 
-    // Si el servidor retorna 401 (No autorizado) o 403 (Prohibido/Token expirado)
+    // Manejo de token expirado / no autorizado
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Forzar recarga o redirección si la aplicación está en producción/navegador
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     }
 
-    // Verificamos si la respuesta fue exitosa (status 200-299)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || errorData.message || `Error HTTP: ${response.status}`);
     }
 
-    // Retornamos la respuesta parseada a JSON
     return await response.json();
   } catch (error) {
     console.error(`Error en la petición a ${endpoint}:`, error);
@@ -63,60 +61,52 @@ export const fetchAPI = async (endpoint, options = {}) => {
 };
 
 /* ==========================================
-   METODOS DE AUTENTICACION
+   MÉTODOS DE AUTENTICACIÓN
    ========================================== */
 
-export const loginUser = async (email, password) => {
-  return await fetchAPI('/auth/login', {
+export const loginUser = (email, password) => 
+  fetchAPI('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-};
 
-export const registerUser = async (nombre, email, password) => {
-  return await fetchAPI('/auth/register', {
+export const registerUser = (nombre, email, password) => 
+  fetchAPI('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ nombre, email, password }),
   });
-};
 
-export const googleLoginUser = async (idToken) => {
-  return await fetchAPI('/auth/google', {
+export const googleLoginUser = (idToken) => 
+  fetchAPI('/auth/google', {
     method: 'POST',
     body: JSON.stringify({ idToken }),
   });
-};
 
-export const getMe = async () => {
-  return await fetchAPI('/auth/me');
-};
+export const getMe = () => fetchAPI('/auth/me');
 
 /* ==========================================
-   METODOS DE FACTURAS
+   MÉTODOS DE FACTURAS
    ========================================== */
 
-export const getInvoiceHistory = async () => {
-  return await fetchAPI('/invoices/history');
-};
+export const getInvoiceHistory = () => fetchAPI('/invoices/history');
 
-export const deleteInvoice = async (invoiceId) => {
-  return await fetchAPI(`/invoices/${invoiceId}`, {
+export const deleteInvoice = (invoiceId) => 
+  fetchAPI(`/invoices/${invoiceId}`, {
     method: 'DELETE',
   });
-};
 
-export const uploadInvoice = async (file) => {
+export const uploadInvoice = (file) => {
   const formData = new FormData();
   formData.append('factura', file);
 
-  return await fetchAPI('/invoices/upload', {
+  return fetchAPI('/invoices/upload', {
     method: 'POST',
     body: formData,
   });
 };
 
-export const resolveInvoiceReview = async (invoiceId, userMessage, chatHistory = []) => {
-  return await fetchAPI('/invoices/resolve-review', {
+export const resolveInvoiceReview = (invoiceId, userMessage, chatHistory = []) => 
+  fetchAPI('/invoices/resolve-review', {
     method: 'POST',
     body: JSON.stringify({
       invoiceId,
@@ -124,24 +114,19 @@ export const resolveInvoiceReview = async (invoiceId, userMessage, chatHistory =
       chatHistory,
     }),
   });
-};
 
 /* ==========================================
-   METODOS DE WHATSAPP
+   MÉTODOS DE WHATSAPP
    ========================================== */
 
-export const getWhatsAppStatus = async () => {
-  return await fetchAPI('/whatsapp/status');
-};
+export const getWhatsAppStatus = () => fetchAPI('/whatsapp/status');
 
-export const connectWhatsApp = async () => {
-  return await fetchAPI('/whatsapp/connect', {
+export const connectWhatsApp = () => 
+  fetchAPI('/whatsapp/connect', {
     method: 'POST',
   });
-};
 
-export const disconnectWhatsApp = async () => {
-  return await fetchAPI('/whatsapp/disconnect', {
+export const disconnectWhatsApp = () => 
+  fetchAPI('/whatsapp/disconnect', {
     method: 'POST',
   });
-};

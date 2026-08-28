@@ -1,13 +1,12 @@
-import { registerService, loginService, googleLoginService } from '../services/authService.js';
+import { registerService, loginService, googleLoginService, getUserByIdService } from '../services/authService.js';
 
 /**
- * Controlador para registrar un nuevo usuario
+ * Registrar un nuevo usuario
  */
 export const register = async (req, res) => {
   try {
     const { nombre, email, password } = req.body;
 
-    // Validación básica de campos requeridos
     if (!nombre || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -38,7 +37,7 @@ export const register = async (req, res) => {
 };
 
 /**
- * Controlador para inicio de sesión
+ * Inicio de sesión tradicional
  */
 export const login = async (req, res) => {
   try {
@@ -67,27 +66,27 @@ export const login = async (req, res) => {
 };
 
 /**
- * Controlador para verificar sesión activa (retorna los datos del usuario autenticado)
+ * Obtener perfil del usuario autenticado (corregido para obtener datos reales desde DB)
  */
 export const getMe = async (req, res) => {
   try {
-    // req.user proviene del middleware de autenticación (authMiddleware)
+    // req.user viene del middleware de autenticación con la propiedad id
+    const user = await getUserByIdService(req.user.id);
+
     return res.json({
       success: true,
-      data: {
-        user: req.user
-      }
+      data: { user }
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(401).json({
       success: false,
-      message: 'Error al obtener datos del usuario.'
+      message: error.message || 'Sesión no válida o usuario inexistente.'
     });
   }
 };
 
 /**
- * Controlador para login / registro con Google
+ * Login / Registro con Google
  */
 export const googleLogin = async (req, res) => {
   try {
