@@ -13,21 +13,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
-    if (user?.email && window.google?.accounts?.id) {
-      window.google.accounts.id.revoke(user.email, () => {
-        console.log('Sesión de Google revocada correctamente.');
-      });
-    }
+  if (window.google?.accounts?.id) {
+    window.google.accounts.id.disableAutoSelect();
+  }
 
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.disableAutoSelect();
-    }
-
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  }, [user]);
+  setUser(null);
+  setToken(null);
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}, []);
 
   useEffect(() => {
     const initAuth = async () => {

@@ -2,9 +2,11 @@ import React, { useEffect, useRef, memo } from 'react';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+// Bandera global fuera del componente para persistir entre rerenders
+let isGoogleInitialized = false;
+
 export const GoogleButton = memo(({ onSuccess, onError }) => {
   const googleButtonRef = useRef(null);
-  const isInitialized = useRef(false);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
@@ -12,9 +14,8 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
     const renderBtn = () => {
       if (!window.google?.accounts?.id || !googleButtonRef.current) return;
 
-      window.google.accounts.id.disableAutoSelect();
-
-      if (!isInitialized.current) {
+      // 1. Inicializar solo UNA VEZ globalmente
+      if (!isGoogleInitialized) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => {
@@ -22,11 +23,11 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
             else if (onError) onError('Error con Google Auth');
           },
           auto_select: false,
-          prompt_parent_id: undefined,
         });
-        isInitialized.current = true;
+        isGoogleInitialized = true;
       }
 
+      // 2. Limpiar e inicializar la interfaz visual del botón
       googleButtonRef.current.innerHTML = '';
       
       window.google.accounts.id.renderButton(googleButtonRef.current, {
@@ -56,7 +57,6 @@ export const GoogleButton = memo(({ onSuccess, onError }) => {
       script.addEventListener('load', renderBtn);
     }
 
-    // Retorno de limpieza para remover el listener al desmontar
     return () => {
       if (script) {
         script.removeEventListener('load', renderBtn);
