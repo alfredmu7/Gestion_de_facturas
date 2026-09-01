@@ -1,95 +1,92 @@
-import { createContext, useState, useEffect, useCallback } from 'react';
-import { loginUser, registerUser, googleLoginUser, getMe } from '../services/api';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../config/supabaseClient';
 
-// 1. Crear y exportar el Contexto (solo UNA vez aquí)
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(() => {
-  if (window.google?.accounts?.id) {
-    window.google.accounts.id.disableAutoSelect();
-  }
-
-  setUser(null);
-  setToken(null);
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-}, []);
-
   useEffect(() => {
-    const initAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        try {
-          const response = await getMe();
-          const userData = response.data?.user || response.data;
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (error) {
-          console.error('Sesión expirada o no válida:', error.message);
-          logout();
-        }
-      }
+    // Obtener la sesión inicial si existe
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
-    };
+    });
 
-    initAuth();
-  }, [logout]);
+    // Escuchar eventos de autenticación (ej. cuando hace clic en el enlace del correo)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-  const handleAuthSuccess = (userData, userToken) => {
-    if (!userData || !userToken) {
-      throw new Error('Respuesta de autenticación incompleta (falta token o usuario).');
-    }
-    setUser(userData);
-    setToken(userToken);
-    localStorage.setItem('token', userToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Registro de usuario con envío de enlace de confirmación
+  const register = async (nombre, email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: nombre },
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) throw error;
+    return data;
   };
 
   const login = async (email, password) => {
-    const response = await loginUser(email, password);
-    const data = response.data?.data || response.data;
-    handleAuthSuccess(data.user || data.usuario, data.token);
-    return response;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
   };
 
-  const register = async (nombre, email, password) => {
-    const response = await registerUser(nombre, email, password);
-    const data = response.data?.data || response.data;
-    if (data.token) {
-      handleAuthSuccess(data.user || data.usuario, data.token);
-    }
-    return response;
+  const loginWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    if (error) throw error;
+    return data;
   };
 
-  const googleLogin = async (idToken) => {
-    const response = await googleLoginUser(idToken);
-    const data = response.data?.data || response.data;
-    handleAuthSuccess(data.user || data.usuario, data.token);
-    return response;
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
+        session,
         loading,
-        isAuthenticated: !!user && !!token,
-        login,
+        isAuthenticated: !!user,
         register,
-        googleLogin,
+        login,
+        loginWithGoogle,
         logout,
       }}
     >
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe ser utilizado dentro de un AuthProvider');
+  }
+  return context;
 };

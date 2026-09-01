@@ -1,3 +1,6 @@
+// Archivo: src/services/api.js [FRONTEND]
+import { supabase } from '../config/supabaseClient.js';
+
 const isProduction = import.meta.env.PROD;
 
 const BASE_URL = isProduction 
@@ -5,13 +8,16 @@ const BASE_URL = isProduction
   : 'http://localhost:4000/api';
 
 /**
- * Helper genérico para peticiones HTTP
+ * Helper genérico para peticiones HTTP a la API protegida con Supabase JWT
  */
 export const fetchAPI = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
-  const token = localStorage.getItem('token');
 
-  // Separar customHeaders y restOptions para evitar sobreescrituras no deseadas
+  // 1. Obtener la sesión activa directamente del cliente Supabase
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  // Separar customHeaders y restOptions
   const { headers: customHeaders, ...restOptions } = options;
 
   const headers = {
@@ -23,7 +29,7 @@ export const fetchAPI = async (endpoint, options = {}) => {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Adjuntar token si existe
+  // Adjuntar el token de la sesión de Supabase si existe
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -37,12 +43,11 @@ export const fetchAPI = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
 
-    // Manejo de token expirado / no autorizado
+    // Manejo de token expirado o no autorizado
     if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // Cerrar la sesión activa en el cliente de Supabase
+      await supabase.auth.signOut();
       
-      // Forzar recarga o redirección si la aplicación está en producción/navegador
       if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
         window.location.href = '/';
       }
@@ -59,30 +64,6 @@ export const fetchAPI = async (endpoint, options = {}) => {
     throw error;
   }
 };
-
-/* ==========================================
-   MÉTODOS DE AUTENTICACIÓN
-   ========================================== */
-
-export const loginUser = (email, password) => 
-  fetchAPI('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-
-export const registerUser = (nombre, email, password) => 
-  fetchAPI('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ nombre, email, password }),
-  });
-
-export const googleLoginUser = (idToken) => 
-  fetchAPI('/auth/google', {
-    method: 'POST',
-    body: JSON.stringify({ idToken }),
-  });
-
-export const getMe = () => fetchAPI('/auth/me');
 
 /* ==========================================
    MÉTODOS DE FACTURAS

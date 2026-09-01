@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase.js';
+import { supabaseAdmin } from '../config/supabaseAdmin.js';
 import { runReviewResolverAgent } from '../agents/runReviewResolverAgent.js';
 
 /**
@@ -7,7 +7,6 @@ import { runReviewResolverAgent } from '../agents/runReviewResolverAgent.js';
 const parseDbDate = (dateVal) => {
   if (!dateVal) return null;
 
-  // Eliminar caracteres basura comúnmente retornados por la IA o concatenaciones (ej: ":null", "'null'", "undefined")
   const cleaned = String(dateVal)
     .replace(/^[:"'\s]+|[:"'\s]+$/g, '')
     .trim();
@@ -16,7 +15,11 @@ const parseDbDate = (dateVal) => {
     return null;
   }
 
-  // Intentar parsear a fecha válida ISO
+  // Si ya viene en formato YYYY-MM-DD, retornar directamente para evitar desajustes de zona horaria
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    return cleaned;
+  }
+
   const parsedDate = new Date(cleaned);
   if (isNaN(parsedDate.getTime())) {
     return null;
@@ -30,13 +33,13 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
     const fileName = `${invoiceData.categoria || 'FACTURA'}_${Date.now()}_${(invoiceData.proveedor || 'Factura').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
 
     // 1. Subir imagen a Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { data: storageData, error: storageError } = await supabaseAdmin.storage
       .from('facturas')
       .upload(fileName, fileBuffer, { contentType: mimeType });
 
     if (storageError) throw new Error(`Error en Storage: ${storageError.message}`);
 
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseAdmin.storage
       .from('facturas')
       .getPublicUrl(fileName);
 
@@ -45,7 +48,7 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
     // 2. Upsert de Proveedor para mantener la FK
     let proveedorId = null;
     if (invoiceData.proveedor) {
-      const { data: provData } = await supabase
+      const { data: provData } = await supabaseAdmin
         .from('proveedores')
         .upsert(
           { nombre: invoiceData.proveedor, nit_rut: invoiceData.nit_rut || null },
@@ -58,7 +61,7 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
     }
 
     // 3. Insertar factura principal sanitizando fecha_emision
-    const { data: insertedInvoice, error: dbError } = await supabase
+    const { data: insertedInvoice, error: dbError } = await supabaseAdmin
       .from('facturas')
       .insert([
         {
@@ -66,7 +69,7 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
           proveedor: invoiceData.proveedor || null,
           nit_rut: invoiceData.nit_rut || null,
           numero_factura: invoiceData.numero_factura || null,
-          fecha_emision: parseDbDate(invoiceData.fecha_emision), // 👈 Sanitización de fecha corregida
+          fecha_emision: parseDbDate(invoiceData.fecha_emision),
           categoria: invoiceData.categoria || 'OTROS',
           total_impuestos: invoiceData.total_impuestos || 0,
           monto_total: invoiceData.monto_total || 0,
@@ -95,7 +98,7 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
         precio_total: item.precio_total || 0
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await supabaseAdmin
         .from('items_factura')
         .insert(itemsToInsert);
 
@@ -117,7 +120,7 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
 
 export const getHistoricalInvoices = async () => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('facturas')
       .select('*, items_factura(*)')
       .order('created_at', { ascending: false })
@@ -139,7 +142,7 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
     const cleanId = String(invoiceId).trim().replace(/['"]/g, '');
 
     // 1. Buscar la factura
-    const { data: invoice, error: fetchError } = await supabase
+    const { data: invoice, error: fetchError } = await supabaseAdmin
       .from('facturas')
       .select('*, items_factura(*)')
       .eq('id', cleanId)
@@ -167,13 +170,11 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
       accion_sugerida: resolution.respuesta_usuario || 'Ajuste posterior realizado correctamente.'
     };
 
-    // Actualizar campos que el usuario o el agente soliciten corregir
     if (fa.proveedor) updatePayload.proveedor = String(fa.proveedor);
     if (fa.nit_rut || fa.nit) updatePayload.nit_rut = String(fa.nit_rut || fa.nit);
     if (fa.monto_total) updatePayload.monto_total = Number(fa.monto_total);
     if (fa.categoria) updatePayload.categoria = String(fa.categoria);
 
-    // 💡 Si la respuesta incluye fecha_emision corregida por el usuario
     if (fa.fecha_emision) {
       updatePayload.fecha_emision = parseDbDate(fa.fecha_emision);
     }
@@ -182,13 +183,12 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
       updatePayload.propina = Number(fa.propina);
     }
 
-    // Si se re-aprueba o corrige una aprobada, dejamos observaciones vacías
     if (nuevoEstado === 'APROBADA') {
       updatePayload.observaciones_auditor = [];
     }
 
     // 4. Guardar en Supabase
-    const { data: updatedRows, error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabaseAdmin
       .from('facturas')
       .update(updatePayload)
       .eq('id', cleanId)
@@ -211,7 +211,7 @@ export const deleteInvoiceService = async (id) => {
   console.log(`🔎 Verificando existencia de la factura con ID: "${id}"...`);
 
   // 1. Buscar si la factura existe
-  const { data: existingInvoice, error: searchError } = await supabase
+  const { data: existingInvoice, error: searchError } = await supabaseAdmin
     .from('facturas')
     .select('id, numero_factura, url_imagen, nombre_archivo_storage')
     .eq('id', id)
@@ -224,16 +224,16 @@ export const deleteInvoiceService = async (id) => {
 
   if (!existingInvoice) {
     console.warn(`⚠️ La factura con ID ${id} NO existe en la tabla 'facturas'.`);
-    const { data: allInvoices } = await supabase.from('facturas').select('id, numero_factura').limit(5);
+    const { data: allInvoices } = await supabaseAdmin.from('facturas').select('id, numero_factura').limit(5);
     console.log('📋 IDs actualmente existentes en la base de datos:', allInvoices);
     return null;
   }
 
   console.log('✅ Factura encontrada:', existingInvoice);
 
-  // 2. Eliminar imagen física del Storage si existe el nombre del archivo
+  // 2. Eliminar imagen física del Storage si existe
   if (existingInvoice.nombre_archivo_storage) {
-    const { error: storageDeleteError } = await supabase.storage
+    const { error: storageDeleteError } = await supabaseAdmin.storage
       .from('facturas')
       .remove([existingInvoice.nombre_archivo_storage]);
 
@@ -245,7 +245,7 @@ export const deleteInvoiceService = async (id) => {
   }
 
   // 3. Proceder a eliminar de PostgreSQL
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('facturas')
     .delete()
     .eq('id', id)

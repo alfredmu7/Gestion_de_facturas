@@ -1,18 +1,18 @@
+// Archivo: src/server.js [BACKEND]
+import 'dotenv/config'; // 👈 OBLIGATORIO: Primera línea absoluta
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
-import authRoutes from './routes/authRoutes.js'; //  1. Importar rutas de auth
-
-dotenv.config();
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Configuración de CORS única y al inicio
+// Configuración de CORS
 app.use(cors({
-  origin: '*', // Permite peticiones desde Netlify u otros orígenes
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 
 // Rutas principales
-app.use('/api/auth', authRoutes); //  2. Usar rutas de auth
+app.use('/api/auth', authRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 

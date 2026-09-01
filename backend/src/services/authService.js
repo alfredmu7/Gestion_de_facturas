@@ -1,5 +1,5 @@
 import { OAuth2Client } from 'google-auth-library';
-import { supabase } from '../config/supabase.js';
+import { supabaseAdmin } from '../config/supabaseAdmin.js';
 import { hashPassword, comparePassword, generateToken } from '../utils/authUtils.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -8,7 +8,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
  * Obtener perfil de usuario por ID (Utilizado por getMe)
  */
 export const getUserByIdService = async (userId) => {
-  const { data: user, error } = await supabase
+  const { data: user, error } = await supabaseAdmin
     .from('usuarios')
     .select('id, nombre, email, rol, created_at')
     .eq('id', userId)
@@ -25,7 +25,7 @@ export const getUserByIdService = async (userId) => {
  * Registra un nuevo usuario
  */
 export const registerService = async ({ nombre, email, password }) => {
-  const { data: existingUser } = await supabase
+  const { data: existingUser } = await supabaseAdmin
     .from('usuarios')
     .select('id')
     .eq('email', email)
@@ -37,7 +37,7 @@ export const registerService = async ({ nombre, email, password }) => {
 
   const hashedPassword = await hashPassword(password);
 
-  const { data: newUser, error } = await supabase
+  const { data: newUser, error } = await supabaseAdmin
     .from('usuarios')
     .insert([
       {
@@ -67,7 +67,7 @@ export const registerService = async ({ nombre, email, password }) => {
  * Autenticación tradicional
  */
 export const loginService = async ({ email, password }) => {
-  const { data: user, error } = await supabase
+  const { data: user, error } = await supabaseAdmin
     .from('usuarios')
     .select('*')
     .eq('email', email)
@@ -121,14 +121,14 @@ export const googleLoginService = async (idToken) => {
     throw new Error('No se pudo obtener el correo electrónico desde Google.');
   }
 
-  let { data: user } = await supabase
+  let { data: user } = await supabaseAdmin
     .from('usuarios')
     .select('id, nombre, email, rol, created_at')
     .eq('email', email)
     .maybeSingle();
 
   if (!user) {
-    const { data: newUser, error } = await supabase
+    const { data: newUser, error } = await supabaseAdmin
       .from('usuarios')
       .insert([
         {

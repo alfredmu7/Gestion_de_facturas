@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { GoogleButton } from './GoogleButton';
+import '../../styles/AuthForm.css';
 
 export const LoginForm = ({ onSwitchToRegister }) => {
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
-  
+
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -16,7 +17,6 @@ export const LoginForm = ({ onSwitchToRegister }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Login tradicional con Correo y Contraseña
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -24,7 +24,7 @@ export const LoginForm = ({ onSwitchToRegister }) => {
 
     try {
       await login(formData.email, formData.password);
-      navigate('/dashboard'); // <-- Agregado para redireccionar al usuario tradicional
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión.');
     } finally {
@@ -32,7 +32,6 @@ export const LoginForm = ({ onSwitchToRegister }) => {
     }
   };
 
-  // Login con Google
   const handleGoogleSuccess = async (idToken) => {
     setError(null);
     setSubmitting(true);
@@ -49,61 +48,84 @@ export const LoginForm = ({ onSwitchToRegister }) => {
   return (
     <div className="auth-card">
       <div className="auth-header">
-        <div className="auth-brand">
-          <ShieldCheck size={28} />
-          <span>Gestor de Facturas</span>
+        <div className="auth-icon-wrapper">
+          <ShieldCheck size={24} />
         </div>
         <h2 className="auth-title">¡Bienvenido de nuevo!</h2>
         <p className="auth-subtitle">Ingresa tus credenciales para acceder a la plataforma</p>
       </div>
 
-      {error && <div className="auth-error-banner">{error}</div>}
+      {error && (
+        <div className="auth-error-banner">
+          <AlertCircle size={16} />
+          <span>{error}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="auth-form">
-        <div className="input-group">
-          <label className="input-label" htmlFor="email">Correo Electrónico</label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            required
-            className="input-field"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="correo@ejemplo.com"
-          />
+        <div className="auth-field-group">
+          <label className="auth-label" htmlFor="email">
+            Correo Electrónico
+          </label>
+          <div className="auth-input-wrapper">
+            <Mail className="auth-input-icon" />
+            <input
+              id="email"
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="correo@ejemplo.com"
+              className="auth-input"
+            />
+          </div>
         </div>
 
-        <div className="input-group">
-          <label className="input-label" htmlFor="password">Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            name="password"
-            required
-            className="input-field"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="••••••••"
-          />
+        <div className="auth-field-group">
+          <label className="auth-label" htmlFor="password">
+            Contraseña
+          </label>
+          <div className="auth-input-wrapper">
+            <Lock className="auth-input-icon" />
+            <input
+              id="password"
+              type="password"
+              name="password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="auth-input"
+            />
+          </div>
         </div>
 
         <button type="submit" disabled={submitting} className="auth-submit-btn">
-          {submitting ? 'Ingresando...' : 'Iniciar Sesión'}
+          {submitting ? (
+            <div className="auth-spinner" />
+          ) : (
+            <>
+              <span>Iniciar Sesión</span>
+              <ArrowRight size={16} />
+            </>
+          )}
         </button>
       </form>
 
       <div className="auth-divider">
-        <span>ó</span>
+        <span className="auth-divider-text">o continúa con</span>
       </div>
 
-      <GoogleButton
-        onSuccess={handleGoogleSuccess}
-        onError={(msg) => setError(msg)}
-      />
+      <div>
+        <GoogleButton
+          onSuccess={handleGoogleSuccess}
+          onError={(msg) => setError(msg)}
+        />
+      </div>
 
       <div className="auth-footer">
-        ¿No tienes cuenta?{' '}
+        ¿No tienes cuenta?
         <button type="button" onClick={onSwitchToRegister} className="auth-switch-btn">
           Regístrate aquí
         </button>

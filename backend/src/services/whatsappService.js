@@ -16,7 +16,7 @@ import {
   getHistoricalInvoices, 
   resolveReviewService 
 } from './invoiceService.js';
-import { supabase } from '../config/supabase.js';
+import { supabaseAdmin } from '../config/supabaseAdmin.js'; // ✅ Importación correcta
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,16 +26,15 @@ let sock = null;
 let currentQR = null;
 let isConnected = false;
 let connectedNumber = null;
-let isManualStop = false; // Flag para bloquear reintentos automáticos si el usuario detiene el servicio
+let isManualStop = false;
 
 export async function initWhatsApp() {
-  // Si ya existe un socket activo, no creamos otro en paralelo
   if (sock) {
     console.log('⚠️ [WhatsApp] Ya existe una instancia activa.');
     return;
   }
 
-  isManualStop = false; // Reseteamos la bandera al iniciar
+  isManualStop = false;
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -54,7 +53,6 @@ export async function initWhatsApp() {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      // 📲 Generar Data URL para el frontend
       if (qr && !isManualStop) {
         currentQR = await QRCode.toDataURL(qr);
         isConnected = false;
@@ -81,7 +79,6 @@ export async function initWhatsApp() {
         
         console.log(`⚠️ [WhatsApp] Conexión cerrada. Motivo status: ${statusCode}`);
 
-        // 🛑 SI FUE DETENIDO MANUALLMENTE, NO REINTENTAR
         if (isManualStop) {
           console.log('🛑 [WhatsApp] Servicio detenido manualmente por el usuario. Sin reconexión.');
           return;
@@ -92,9 +89,10 @@ export async function initWhatsApp() {
           if (fs.existsSync(AUTH_DIR)) {
             fs.rmSync(AUTH_DIR, { recursive: true, force: true });
           }
+          sock = null;
+          return; // No reintentar automáticamente si se cerró la sesión
         }
 
-        // Reconexión automática solo si NO fue una parada manual
         console.log('🔄 Reintentando inicialización en 3 segundos...');
         setTimeout(() => {
           if (!isManualStop) {
@@ -189,7 +187,8 @@ export async function initWhatsApp() {
           if (!userText || userText.trim().length === 0) continue;
 
           try {
-            const { data: pendingInvoice } = await supabase
+            // ✅ CORREGIDO: Usar supabaseAdmin en lugar de supabase
+            const { data: pendingInvoice } = await supabaseAdmin
               .from('facturas')
               .select('id')
               .eq('estado_auditoria', 'REQUIERE_REVISION')
@@ -226,17 +225,14 @@ export async function initWhatsApp() {
   }
 }
 
-/**
- * Detiene y apaga totalmente el cliente de WhatsApp sin reintentos automáticos.
- */
 export async function stopWhatsApp() {
   try {
-    isManualStop = true; // Bloqueamos cualquier callback de reconexión
+    isManualStop = true;
 
     if (sock) {
-      sock.ev.removeAllListeners(); // Quitamos los listeners de eventos
+      sock.ev.removeAllListeners();
       await sock.logout().catch(() => {});
-      sock.end();
+      sock.end(undefined);
       sock = null;
     }
 
