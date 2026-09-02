@@ -1,6 +1,14 @@
-import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Image, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
-import { uploadInvoice } from '../services/api'; // 👈 Importamos la función de la API
+import React, { useState, useRef, useEffect } from 'react';
+import { UploadCloud, FileText, Image, CheckCircle2, AlertCircle, Loader2, Sparkles, Layers } from 'lucide-react';
+import { uploadInvoice } from '../services/api';
+
+// Etapas interactivas de procesamiento por factura
+const STAGES = [
+  { progress: 15, text: "Subiendo archivo al servidor..." },
+  { progress: 40, text: "El agente está analizando el documento..." },
+  { progress: 70, text: "Extrayendo montos, proveedores y fechas..." },
+  { progress: 90, text: "Ejecutando reglas de auditoría y validación..." }
+];
 
 export default function InvoiceUploader({ onInvoiceProcessed }) {
   const [queue, setQueue] = useState([]);
@@ -8,7 +16,6 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Maneja la selección o arrastre de PDFs e Imágenes
   const handleFilesSelect = (files) => {
     const allowedTypes = [
       'application/pdf',
@@ -31,13 +38,14 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
       size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
       isImage: file.type.startsWith('image/'),
       status: 'pending', // 'pending' | 'processing' | 'completed' | 'error'
+      progress: 0,
+      stageText: 'En espera...',
       error: null
     }));
 
     setQueue(prev => [...prev, ...newItems]);
   };
 
-  // Eventos de Drag & Drop
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -55,7 +63,6 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
     }
   };
 
-  // Procesa cada archivo de la cola de forma secuencial
   const processBatch = async () => {
     if (isProcessing || queue.length === 0) return;
     setIsProcessing(true);
@@ -63,31 +70,68 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
     const pendingItems = queue.filter(item => item.status === 'pending');
 
     for (const item of pendingItems) {
-      // 1. Cambiar estado a 'processing'
-      setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'processing' } : q));
+      // 1. Iniciar estado y primer paso
+      setQueue(prev => prev.map(q => q.id === item.id ? { 
+        ...q, 
+        status: 'processing', 
+        progress: STAGES[0].progress, 
+        stageText: STAGES[0].text 
+      } : q));
+
+      // 2. Simulación de avance gradual del agente en segundo plano
+      let stageIdx = 0;
+      const interval = setInterval(() => {
+        stageIdx++;
+        if (stageIdx < STAGES.length) {
+          setQueue(prev => prev.map(q => q.id === item.id ? { 
+            ...q, 
+            progress: STAGES[stageIdx].progress, 
+            stageText: STAGES[stageIdx].text 
+          } : q));
+        }
+      }, 1400);
 
       try {
-        // 2. Usar uploadInvoice del servicio API (conecta automáticamente a Render)
+        // 3. Envío real a la API
         const data = await uploadInvoice(item.file);
+        clearInterval(interval);
 
-        // 3. Cambiar estado a 'completed'
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'completed' } : q));
+        // 4. Finalización exitosa
+        setQueue(prev => prev.map(q => q.id === item.id ? { 
+          ...q, 
+          status: 'completed', 
+          progress: 100, 
+          stageText: '¡Procesado e ingresado con éxito!' 
+        } : q));
 
-        // 4. Notificar al Dashboard
         if (onInvoiceProcessed) {
           onInvoiceProcessed(data.data);
         }
       } catch (err) {
+        clearInterval(interval);
         console.error(`Error en ${item.name}:`, err);
-        setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'error', error: err.message } : q));
+        setQueue(prev => prev.map(q => q.id === item.id ? { 
+          ...q, 
+          status: 'error', 
+          progress: 100, 
+          stageText: 'Error durante el procesamiento', 
+          error: err.message 
+        } : q));
       }
     }
 
     setIsProcessing(false);
   };
 
+  // Métricas del Lote Global
+  const totalItems = queue.length;
+  const completedItems = queue.filter(i => i.status === 'completed').length;
+  const globalProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const currentProcessingItem = queue.find(i => i.status === 'processing');
+
   return (
-    <div className="content-card">
+    <div className="content-card" style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e2e8f0' }}>
+      
       {/* Zona Drag & Drop */}
       <div 
         className={`upload-label ${isDragging ? 'dragging' : ''}`}
@@ -95,7 +139,15 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        style={{ cursor: 'pointer', border: '2px dashed #0284c7', padding: '2rem', textAlign: 'center', borderRadius: '8px' }}
+        style={{ 
+          cursor: 'pointer', 
+          border: '2px dashed #0284c7', 
+          padding: '2rem', 
+          textAlign: 'center', 
+          borderRadius: '12px',
+          backgroundColor: isDragging ? '#f0f9ff' : '#fafafa',
+          transition: 'all 0.2s ease'
+        }}
       >
         <input 
           type="file" 
@@ -105,78 +157,134 @@ export default function InvoiceUploader({ onInvoiceProcessed }) {
           onChange={(e) => handleFilesSelect(e.target.files)} 
           style={{ display: 'none' }} 
         />
-        <UploadCloud size={40} color="#0284c7" />
-        <span className="upload-text" style={{ display: 'block', marginTop: '10px' }}>
-          Arrastra fotos o PDFs de tus facturas aquí o haz clic para seleccionar varios a la vez
+        <UploadCloud size={40} color='#13a847' style={{ marginBottom: '8px' }} />
+        <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: '#1e293b' }}>
+          Arrastra fotos o PDFs de tus facturas aquí o haz clic para seleccionar
+        </span>
+        <span style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
+          Soporta PDFs, JPG, PNG y WEBP
         </span>
       </div>
 
-      {/* Lista de procesamiento en lote */}
+      {/* Lista de Procesamiento y Barra General */}
       {queue.length > 0 && (
-        <div style={{ marginTop: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <strong>Facturas en Cola ({queue.filter(i => i.status === 'completed').length} / {queue.length})</strong>
+        <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* Header del Lote & Botón Accionador */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong style={{ fontSize: '0.6rem', color: '#1e293ba2' }}>
+                Cola de Procesamiento ({completedItems} de {totalItems} completadas)
+              </strong>
+            </div>
+
             <button 
               onClick={processBatch} 
               disabled={isProcessing || !queue.some(i => i.status === 'pending')}
-              className="submit-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', cursor: 'pointer' }}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '0.9rem 1.25rem', 
+                cursor: (isProcessing || !queue.some(i => i.status === 'pending')) ? 'not-allowed' : 'pointer', 
+                borderRadius: '8px',
+                backgroundColor: isProcessing ? '#bcbfc2' : '#13a847',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '25px',
+                fontWeight: 600,
+                fontSize: '0.8rem'
+              }}
             >
               {isProcessing ? (
                 <><Loader2 className="spin" size={18} /> Procesando Lote...</>
               ) : (
-                <><Sparkles size={18} /> Procesar Facturas con IA</>
-              )}
+                <><Sparkles size={18} /> Procesar Facturas</>
+              )}  
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Banner Informativo Global cuando se procesa más de una factura */}
+          {isProcessing && totalItems > 1 && (
+            <div style={{ padding: '0.85rem 1rem', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Layers size={20} color="#0284c7" />
+              <div style={{ fontSize: '0.85rem', color: '#1e40af' }}>
+                <strong>Procesando lote en secuencia:</strong> Analizando documento actual. No cierres esta pestaña mientras el agente termina el lote.
+              </div>
+            </div>
+          )}
+
+          {/* Tarjetas Individuales por Factura */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {queue.map((item) => (
               <div 
                 key={item.id} 
                 style={{ 
                   display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  padding: '10px 14px', 
-                  backgroundColor: '#f8fafc', 
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0'
+                  flexDirection: 'column',
+                  padding: '0.85rem 1rem', 
+                  backgroundColor: item.status === 'processing' ? '#f0f9ff' : '#f8fafc', 
+                  borderRadius: '8px',
+                  border: item.status === 'processing' ? '1px solid #bae6fd' : '1px solid #e2e8f0',
+                  gap: '0.5rem'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {item.isImage ? (
-                    <Image size={20} color="#0284c7" />
-                  ) : (
-                    <FileText size={20} color="#0284c7" />
-                  )}
+                {/* Cabecera del Item */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {item.isImage ? <Image size={20} color='#13a847' /> : <FileText size={20} color="#0284c7" />}
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '0.875rem', color: '#1e293b' }}>{item.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.size}</div>
+                    </div>
+                  </div>
+
+                  {/* Estado Visual Integrado */}
                   <div>
-                    <div style={{ fontWeight: '600', fontSize: '14px' }}>{item.name}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>{item.size}</div>
+                    {item.status === 'pending' && <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 500 }}>En espera</span>}
+                    {item.status === 'processing' && (
+                      <span style={{ color: '#0284c7', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <Loader2 className="spin" size={14} /> Analizando...
+                      </span>
+                    )}
+                    {item.status === 'completed' && (
+                      <span style={{ color: '#16a34a', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <CheckCircle2 size={14} /> Completado
+                      </span>
+                    )}
+                    {item.status === 'error' && (
+                      <span style={{ color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <AlertCircle size={14} /> Error
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  {item.status === 'pending' && <span style={{ color: '#64748b', fontSize: '13px' }}>Pendiente</span>}
-                  {item.status === 'processing' && (
-                    <span style={{ color: '#0284c7', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Loader2 className="spin" size={14} /> Analizando...
-                    </span>
-                  )}
-                  {item.status === 'completed' && (
-                    <span style={{ color: '#16a34a', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={14} /> Listo
-                    </span>
-                  )}
-                  {item.status === 'error' && (
-                    <span style={{ color: '#dc2626', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertCircle size={14} /> Error
-                    </span>
-                  )}
-                </div>
+                {/* Barra de Progreso Dinámica y Texto Informativo del Agente */}
+                {item.status === 'processing' && (
+                  <div style={{ marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#0284c7', fontWeight: 500, marginBottom: '4px' }}>
+                      <span>{item.stageText}</span>
+                      <span>{item.progress}%</span>
+                    </div>
+                    {/* Contenedor de la Barra de Carga */}
+                    <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div 
+                        style={{ 
+                          width: `${item.progress}%`, 
+                          height: '100%', 
+                          backgroundColor: '#0284c7', 
+                          borderRadius: '4px', 
+                          transition: 'width 0.4s ease' 
+                        }} 
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
         </div>
       )}
     </div>

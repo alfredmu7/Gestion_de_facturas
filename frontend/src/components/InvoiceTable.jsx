@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
-import { Search, CheckCircle, AlertCircle, XCircle, ExternalLink, FileText, MessageSquareText, Trash2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Search, CheckCircle, AlertCircle, XCircle, ExternalLink, FileText, MessageSquareText, Trash2, Calendar, X } from 'lucide-react';
 import { InvoiceDetailModal } from '../components/InvoiceDetailModal';
-import { deleteInvoice } from '../services/api'; // 👈 Importamos la función centralizada de la API
+import { deleteInvoice } from '../services/api';
 
 export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('TODAS');
+  
+  // 📅 Estados para el filtro por Rango de Fechas (YYYY-MM-DD)
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const startInputRef = useRef(null);
+  const endInputRef = useRef(null);
 
   // Normalización flexible para campos de Supabase / Backend
   const getProveedor = (inv) => inv.proveedor || inv.nombre_proveedor || inv.vendorName || 'Desconocido';
@@ -25,7 +33,7 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
       .replace(/\s+/g, '_');
   };
 
-  // Formateador de fecha
+  // Formateador de Fecha Emisión
   const formatFechaExacta = (fechaStr) => {
     if (!fechaStr) return 'N/A';
     const cleanDate = String(fechaStr).split('T')[0];
@@ -37,21 +45,36 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     return new Date(fechaStr).toLocaleDateString('es-CO');
   };
 
-  // Manejo de eliminación utilizando la API centralizada
+  // 🕒 Formateador de Fecha y Hora de Carga al Sistema
+  const formatFechaHoraCarga = (fechaStr) => {
+    if (!fechaStr) return 'N/A';
+    const dateObj = new Date(fechaStr);
+    if (isNaN(dateObj.getTime())) return 'N/A';
+
+    return dateObj.toLocaleString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Manejo de eliminación
   const handleDelete = async (e, id) => {
-    e.stopPropagation(); // Evita abrir el modal al hacer clic en borrar
+    e.stopPropagation();
 
     if (!window.confirm('¿Estás seguro de que deseas eliminar esta factura de la base de datos?')) {
       return;
     }
 
     try {
-      // 👈 Sustituimos la llamada directa a localhost por deleteInvoice(id)
       const result = await deleteInvoice(id);
 
       if (result.success) {
         if (onInvoiceUpdated) {
-          onInvoiceUpdated(); // Refresca la lista y métricas en el componente padre
+          onInvoiceUpdated();
         }
       } else {
         alert(result.error || result.message || 'No se pudo eliminar la factura.');
@@ -62,7 +85,7 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     }
   };
 
-  // Filtro en tiempo real
+  // 🔍 Filtro en tiempo real por Rango de Fechas de CARGA (`created_at`)
   const filteredInvoices = invoices.filter(inv => {
     const proveedorText = getProveedor(inv).toLowerCase();
     const numeroText = getNumeroFactura(inv).toLowerCase();
@@ -76,10 +99,26 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     const currentCategory = getCategoryNormalized(inv);
     const matchesCategory = categoryFilter === 'TODAS' || currentCategory === categoryFilter;
 
-    return matchesSearch && matchesCategory;
+    // 📅 Lógica del filtro por Rango
+    let matchesRange = true;
+    const rawUploadDate = inv.created_at || inv.uploaded_at;
+
+    if (rawUploadDate) {
+      const uploadDateFormatted = String(rawUploadDate).split('T')[0]; // 'YYYY-MM-DD'
+
+      if (startDate && uploadDateFormatted < startDate) {
+        matchesRange = false;
+      }
+      if (endDate && uploadDateFormatted > endDate) {
+        matchesRange = false;
+      }
+    } else if (startDate || endDate) {
+      matchesRange = false;
+    }
+
+    return matchesSearch && matchesCategory && matchesRange;
   });
 
-  // Renderizado de badges de estado
   const renderBadge = (estado) => {
     const estadoNormalized = (estado || '').toUpperCase();
 
@@ -100,7 +139,6 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
     }
   };
 
-  // Formateador de moneda COP
   const formatMonto = (monto) => {
     const num = parseFloat(monto);
     if (isNaN(num)) return '$0';
@@ -118,8 +156,9 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
         <span className="count-badge">{filteredInvoices.length} resultados</span>
       </div>
 
-      <div className="table-controls">
-        <div className="search-wrapper" style={{ position: 'relative', flex: 1 }}>
+      <div className="table-controls" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Input de Búsqueda */}
+        <div className="search-wrapper" style={{ position: 'relative', flex: 2, minWidth: '220px' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input 
             type="text" 
@@ -131,10 +170,112 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
           />
         </div>
 
+
+         {/* 📅 Selector por Rango de Fechas */}
+<div 
+  style={{ 
+    display: 'inline-flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#fff',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    padding: '0.4rem 0.75rem',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+    gap: '0.25rem'
+  }}
+>
+  {/* Icono Principal */}
+  <Calendar size={17} style={{ color: '#0284c7', marginRight: '4px', flexShrink: 0 }} />
+
+  {/* CSS Inline para ocultar el icono nativo del navegador que descentra el input */}
+  <style>{`
+    .custom-date-input::-webkit-calendar-picker-indicator {
+      display: none;
+      -webkit-appearance: none;
+    }
+  `}</style>
+  
+  {/* Fecha Inicio */}
+  <input 
+    ref={startInputRef}
+    type="date" 
+    className="custom-date-input"
+    value={startDate}
+    onChange={(e) => setStartDate(e.target.value)}
+    onClick={() => startInputRef.current?.showPicker && startInputRef.current.showPicker()}
+    style={{ 
+      border: 'none',
+      outline: 'none',
+      fontSize: '0.825rem',
+      color: '#334155',
+      backgroundColor: 'transparent',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      width: '117px',
+      textAlign: 'center',
+      padding: 0
+    }}
+    title="Fecha inicial de carga"
+  />
+
+  <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'bold', userSelect: 'none', padding: '0 2px' }}>
+    a
+  </span>
+
+  {/* Fecha Fin */}
+  <input 
+    ref={endInputRef}
+    type="date" 
+    className="custom-date-input"
+    value={endDate}
+    min={startDate}
+    onChange={(e) => setEndDate(e.target.value)}
+    onClick={() => endInputRef.current?.showPicker && endInputRef.current.showPicker()}
+    style={{ 
+      border: 'none',
+      outline: 'none',
+      fontSize: '0.825rem',
+      color: '#334155',
+      backgroundColor: 'transparent',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      width: '117px',
+      textAlign: 'center',
+      padding: 0
+    }}
+    title="Fecha final de carga"
+  />
+
+  {/* Botón para Limpiar (mantiene el espacio o aparece sin desajustar) */}
+  {(startDate || endDate) && (
+    <button 
+      onClick={() => {
+        setStartDate('');
+        setEndDate('');
+      }}
+      style={{
+        border: 'none',
+        background: 'transparent',
+        color: '#94a3b8',
+        cursor: 'pointer',
+        padding: '0 0 0 4px',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+      title="Limpiar rango"
+    >
+      <X size={15} />
+    </button>
+  )}
+</div>
+
+        {/* Selector de Categoría */}
         <select 
           value={categoryFilter} 
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="select-filter"
+          style={{ flex: 1, minWidth: '160px' }}
         >
           <option value="TODAS">Todas las categorías</option>
           <option value="INVENTARIO">Inventario</option>
@@ -153,6 +294,7 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
               <th>Proveedor</th>
               <th>N° Factura</th>
               <th>Fecha Emisión</th>
+              <th>Fecha y Hora Carga</th>
               <th>Categoría</th>
               <th>Monto Total</th>
               <th>Propina</th>
@@ -166,7 +308,8 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
             {filteredInvoices.length > 0 ? (
               filteredInvoices.map((inv, index) => {
                 const comprobanteUrl = getComprobanteUrl(inv);
-                const fecha = inv.fecha_emision || inv.issueDate || inv.created_at;
+                const fechaEmision = inv.fecha_emision || inv.issueDate;
+                const fechaCarga = inv.created_at || inv.uploaded_at;
                 const estado = (inv.estado_auditoria || inv.auditStatus || '').toUpperCase();
                 const isRevision = estado === 'REQUIERE_REVISION' || estado === 'REVISION';
 
@@ -178,7 +321,12 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
                   >
                     <td><strong>{getProveedor(inv)}</strong></td>
                     <td>{getNumeroFactura(inv)}</td>
-                    <td>{formatFechaExacta(fecha)}</td>
+                    <td>{formatFechaExacta(fechaEmision)}</td>
+                    
+                    <td style={{ fontSize: '0.75rem', color: '#475569aa', whiteSpace: 'nowrap' }}>
+                      {formatFechaHoraCarga(fechaCarga)}
+                    </td>
+
                     <td>
                       <span className="category-badge">
                         {getCategoryRaw(inv)}
@@ -260,9 +408,9 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
               })
             ) : (
               <tr>
-                <td colSpan="10" style={{ textAlign: 'center', color: '#94a3b8', padding: '2.5rem' }}>
+                <td colSpan="11" style={{ textAlign: 'center', color: '#94a3b8', padding: '2.5rem' }}>
                   <FileText size={32} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.5 }} />
-                  No se encontraron facturas con los filtros seleccionados.
+                  No se encontraron facturas dentro del rango de fechas seleccionado.
                 </td>
               </tr>
             )}
@@ -270,7 +418,6 @@ export default function InvoiceTable({ invoices = [], onInvoiceUpdated }) {
         </table>
       </div>
 
-      {/* 🤖 MODAL INTERACTIVO CON AGENTE 3 (MEDIADOR) */}
       {selectedInvoice && (
         <InvoiceDetailModal
           invoice={selectedInvoice}

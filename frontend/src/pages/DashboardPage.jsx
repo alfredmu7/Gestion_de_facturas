@@ -115,32 +115,35 @@ export const DashboardPage = () => {
         
         {/* VISTA 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <>
-            <header className="page-header">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <header className="page-header" style={{ marginBottom: 0 }}>
               <h1 className="page-title">Panel de Control de Facturación</h1>
               <p className="page-subtitle">Gestión de facturación, auditoría de agentes y organización automatizada.</p>
             </header>
 
-            {/* Matriz de Métricas e Indicadores Generales */}
+            {/* Matriz de Métricas */}
             <MetricsHeader invoices={invoices} />
 
             {/* Carga e Ingestión de Facturas */}
             <InvoiceUploader onInvoiceProcessed={handleInvoiceProcessed} />
 
-            {/* Tabla Principal con Mediación de Agentes */}
-            <InvoiceTable invoices={invoices} onInvoiceUpdated={handleInvoiceProcessed} />
-          </>
+            {/* Tabla del Dashboard */}
+            <InvoiceTable 
+              invoices={invoices.slice(0, 3)} 
+              onInvoiceUpdated={handleInvoiceProcessed} 
+            />
+          </div>
         )}
 
         {/* VISTA 2: MIS FACTURAS */}
         {activeTab === 'invoices' && (
-          <>
-            <header className="page-header">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <header className="page-header" style={{ marginBottom: 0 }}>
               <h1 className="page-title">Mis Facturas</h1>
               <p className="page-subtitle">Historial completo de documentos cargados y procesados.</p>
             </header>
             <InvoiceTable invoices={invoices} onInvoiceUpdated={handleInvoiceProcessed} />
-          </>
+          </div>
         )}
 
         {/* VISTA 3: CANAL WHATSAPP */}
@@ -150,18 +153,18 @@ export const DashboardPage = () => {
 
         {/* VISTA 4: AJUSTES */}
         {activeTab === 'settings' && (
-          <>
-            <header className="page-header">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <header className="page-header" style={{ marginBottom: 0 }}>
               <h1 className="page-title">Ajustes del Sistema</h1>
               <p className="page-subtitle">Configura reglas de auditoría y claves de API.</p>
             </header>
-            <div style={{ padding: '2rem', backgroundColor: '#fff', borderRadius: '12px', marginTop: '1rem' }}>
-              <h3>Configuración General</h3>
+            <div style={{ padding: '2rem', backgroundColor: '#fff', borderRadius: '12px' }}>
+              <h3 style={{ margin: 0 }}>Configuración General</h3>
               <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
                 Opciones del agente Gemini AI, almacenamiento en Supabase y notificaciones.
               </p>
             </div>
-          </>
+          </div>
         )}
 
       </main>
