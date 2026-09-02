@@ -13,11 +13,18 @@ const BASE_URL = isProduction
 export const fetchAPI = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
 
-  // 1. Obtener la sesión activa directamente del cliente Supabase
-  const { data: { session } } = await supabase.auth.getSession();
+  // 1. Obtener la sesión (Supabase auto-refresca si el refresh_token es válido)
+  let { data: { session } } = await supabase.auth.getSession();
+  
+  // Si la sesión expiró o está por expirar, refrescar explícitamente
+  if (!session) {
+    const { data: refreshData } = await supabase.auth.refreshSession();
+    session = refreshData?.session || null;
+  }
+
   const token = session?.access_token;
 
-  // Separar customHeaders y restOptions
+  // 2. Construir Headers
   const { headers: customHeaders, ...restOptions } = options;
 
   const headers = {
@@ -43,14 +50,15 @@ export const fetchAPI = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
 
-    // Manejo de token expirado o no autorizado
+    // 3. Manejo de token invalidad formalmente por el servidor backend
     if (response.status === 401 || response.status === 403) {
-      // Cerrar la sesión activa en el cliente de Supabase
+      console.warn('⚠️ Sesión expirada o no autorizada. Cerrando sesión...');
       await supabase.auth.signOut();
       
       if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
         window.location.href = '/';
       }
+      throw new Error('Sesión expirada. Por favor inicia sesión de nuevo.');
     }
 
     if (!response.ok) {
@@ -60,7 +68,7 @@ export const fetchAPI = async (endpoint, options = {}) => {
 
     return await response.json();
   } catch (error) {
-    console.error(`Error en la petición a ${endpoint}:`, error);
+    console.error(`❌ Error en la petición a ${endpoint}:`, error);
     throw error;
   }
 };

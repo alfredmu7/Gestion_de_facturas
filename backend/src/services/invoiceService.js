@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../config/supabaseAdmin.js';
 import { runReviewResolverAgent } from '../agents/runReviewResolverAgent.js';
 
 /**
- * 📌 Helper para sanitizar y validar valores antes de insertarlos en columnas de tipo DATE en PostgreSQL
+ * 📌 Helper para sanitizar y validar valores antes de insertarlos en columnas DATE
  */
 const parseDbDate = (dateVal) => {
   if (!dateVal) return null;
@@ -15,7 +15,6 @@ const parseDbDate = (dateVal) => {
     return null;
   }
 
-  // Si ya viene en formato YYYY-MM-DD, retornar directamente para evitar desajustes de zona horaria
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
     return cleaned;
   }
@@ -28,7 +27,10 @@ const parseDbDate = (dateVal) => {
   return parsedDate.toISOString().split('T')[0];
 };
 
-export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer, mimeType) => {
+/**
+ * 📌 Guardar factura e ítems asociados al userId
+ */
+export const saveInvoiceToDatabase = async (userId, invoiceData, auditResult, fileBuffer, mimeType) => {
   try {
     const fileName = `${invoiceData.categoria || 'FACTURA'}_${Date.now()}_${(invoiceData.proveedor || 'Factura').replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
 
@@ -45,13 +47,17 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
 
     const publicUrl = publicUrlData.publicUrl;
 
-    // 2. Upsert de Proveedor para mantener la FK
+    // 2. Upsert de Proveedor asociado al userId
     let proveedorId = null;
     if (invoiceData.proveedor) {
       const { data: provData } = await supabaseAdmin
         .from('proveedores')
         .upsert(
-          { nombre: invoiceData.proveedor, nit_rut: invoiceData.nit_rut || null },
+          { 
+            user_id: userId, // 👈 Asociado al usuario
+            nombre: invoiceData.proveedor, 
+            nit_rut: invoiceData.nit_rut || null 
+          },
           { onConflict: 'nombre' }
         )
         .select('id')
@@ -60,11 +66,12 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
       if (provData) proveedorId = provData.id;
     }
 
-    // 3. Insertar factura principal sanitizando fecha_emision
+    // 3. Insertar factura principal incluyendo el user_id
     const { data: insertedInvoice, error: dbError } = await supabaseAdmin
       .from('facturas')
       .insert([
         {
+          user_id: userId, // 👈 CRÍTICO: Asigna la propiedad al usuario autenticado
           proveedor_id: proveedorId,
           proveedor: invoiceData.proveedor || null,
           nit_rut: invoiceData.nit_rut || null,
@@ -118,11 +125,15 @@ export const saveInvoiceToDatabase = async (invoiceData, auditResult, fileBuffer
   }
 };
 
-export const getHistoricalInvoices = async () => {
+/**
+ * 📌 Obtener historial filtrado por el userId del usuario
+ */
+export const getHistoricalInvoices = async (userId) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('facturas')
       .select('*, items_factura(*)')
+      .eq('user_id', userId) // 👈 CRÍTICO: Garantiza la independencia de lecturas
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -135,24 +146,25 @@ export const getHistoricalInvoices = async () => {
 };
 
 /**
- * Servicio para resolver revisión vía Agente Resolutor (Agente 3)
+ * 📌 Resolver revisión validando propiedad con userId
  */
-export const resolveReviewService = async (invoiceId, userMessage, chatHistory = []) => {
+export const resolveReviewService = async (invoiceId, userMessage, chatHistory = [], userId) => {
   try {
     const cleanId = String(invoiceId).trim().replace(/['"]/g, '');
 
-    // 1. Buscar la factura
+    // 1. Buscar la factura verificando user_id
     const { data: invoice, error: fetchError } = await supabaseAdmin
       .from('facturas')
       .select('*, items_factura(*)')
       .eq('id', cleanId)
+      .eq('user_id', userId) // 👈 Valida pertenencia
       .maybeSingle();
 
     if (fetchError || !invoice) {
-      throw new Error(`Factura con ID ${cleanId} no encontrada.`);
+      throw new Error(`Factura con ID ${cleanId} no encontrada o no pertenece al usuario.`);
     }
 
-    // 2. Ejecutar Agente 3 enviando el estado actual
+    // 2. Ejecutar Agente 3
     const resolution = await runReviewResolverAgent({
       invoiceData: invoice,
       auditObservations: invoice.observaciones_auditor,
@@ -161,8 +173,6 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
     });
 
     const fa = resolution.factura_actualizada || resolution.datos_corregidos || {};
-
-    // 3. Determinar el nuevo estado
     const nuevoEstado = resolution.nuevo_estado_auditoria || 'APROBADA';
 
     const updatePayload = {
@@ -187,11 +197,12 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
       updatePayload.observaciones_auditor = [];
     }
 
-    // 4. Guardar en Supabase
+    // 3. Guardar cambios en Supabase con filtro de user_id
     const { data: updatedRows, error: updateError } = await supabaseAdmin
       .from('facturas')
       .update(updatePayload)
       .eq('id', cleanId)
+      .eq('user_id', userId) // 👈 Doble verificación de seguridad
       .select('*, items_factura(*)');
 
     if (updateError) throw updateError;
@@ -205,16 +216,17 @@ export const resolveReviewService = async (invoiceId, userMessage, chatHistory =
 };
 
 /**
- * 📌 Eliminar factura de Supabase (Base de datos y Storage)
+ * 📌 Eliminar factura asegurando propiedad de usuario
  */
-export const deleteInvoiceService = async (id) => {
-  console.log(`🔎 Verificando existencia de la factura con ID: "${id}"...`);
+export const deleteInvoiceService = async (id, userId) => {
+  console.log(`🔎 Verificando existencia de factura ${id} para el usuario ${userId}...`);
 
-  // 1. Buscar si la factura existe
+  // 1. Buscar factura con filtro de user_id
   const { data: existingInvoice, error: searchError } = await supabaseAdmin
     .from('facturas')
     .select('id, numero_factura, url_imagen, nombre_archivo_storage')
     .eq('id', id)
+    .eq('user_id', userId) // 👈 Previene eliminaciones cruzadas entre usuarios
     .maybeSingle();
 
   if (searchError) {
@@ -223,15 +235,11 @@ export const deleteInvoiceService = async (id) => {
   }
 
   if (!existingInvoice) {
-    console.warn(`⚠️ La factura con ID ${id} NO existe en la tabla 'facturas'.`);
-    const { data: allInvoices } = await supabaseAdmin.from('facturas').select('id, numero_factura').limit(5);
-    console.log('📋 IDs actualmente existentes en la base de datos:', allInvoices);
+    console.warn(`⚠️ La factura con ID ${id} no existe o no pertenece al usuario ${userId}.`);
     return null;
   }
 
-  console.log('✅ Factura encontrada:', existingInvoice);
-
-  // 2. Eliminar imagen física del Storage si existe
+  // 2. Eliminar imagen física del Storage
   if (existingInvoice.nombre_archivo_storage) {
     const { error: storageDeleteError } = await supabaseAdmin.storage
       .from('facturas')
@@ -244,11 +252,12 @@ export const deleteInvoiceService = async (id) => {
     }
   }
 
-  // 3. Proceder a eliminar de PostgreSQL
+  // 3. Eliminar de la base de datos
   const { data, error } = await supabaseAdmin
     .from('facturas')
     .delete()
     .eq('id', id)
+    .eq('user_id', userId) // 👈 Eliminación segura
     .select();
 
   if (error) {

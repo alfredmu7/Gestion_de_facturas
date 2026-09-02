@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { authenticateToken } from '../middlewares/authMiddleware.js'; // 👈 Nombre correcto
 import { 
   getHistoryHandler, 
-  getWhatsAppStatusHandler, 
   uploadInvoiceHandler, 
   resolveReviewHandler,
-  deleteInvoiceHandler // 👈 1. Importas el manejador de borrado
+  deleteInvoiceHandler
 } from '../controllers/invoiceController.js';
 
 const router = Router();
@@ -13,7 +13,7 @@ const router = Router();
 // Configuración de Multer
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }, // Límite de 15MB
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'application/pdf',
@@ -31,14 +31,14 @@ const upload = multer({
   }
 });
 
-// 📌 Rutas HTTP delegadas a Controladores
+// Proteger todas las rutas del router
+router.use(authenticateToken); // 👈 Usar el nombre exportado
+
 router.get('/history', getHistoryHandler);
-router.get('/whatsapp-status', getWhatsAppStatusHandler);
 router.post('/upload', upload.single('factura'), uploadInvoiceHandler);
 router.post('/resolve-review', resolveReviewHandler);
-router.delete('/:id', deleteInvoiceHandler); // 👈 2. Endpoint DELETE registrado
+router.delete('/:id', deleteInvoiceHandler);
 
-// Middleware de manejo de errores de Multer
 router.use((err, req, res, next) => {
   if (err) {
     return res.status(400).json({ error: err.message });
